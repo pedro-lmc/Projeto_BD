@@ -1,5 +1,3 @@
--- Etapa 1 - Dados de teste
--- Pessoa 2
 -- rodar depois do 01_create_tables.sql
 
 -- pacientes (5)
