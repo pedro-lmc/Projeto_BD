@@ -1,5 +1,3 @@
--- Etapa 1 - Criação das tabelas
--- Pessoa 2 - DDL e carga de dados
 -- Projeto Sistema de Gestão Hospitalar
 
 -- obs: adicionei "endereco" em PESSOA, "nivel_risco" em PROCEDIMENTO e
