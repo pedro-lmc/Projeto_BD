@@ -1,10 +1,8 @@
 -- ====================================================================
--- PROJETO SISTEMA DE GESTÃO HOSPITALAR DRA. YUSKA MARITAN BRITO [cite: 1]
--- ETAPA 1 - CONSULTAS ANALÍTICAS (SQL PURO) [cite: 26, 63]
--- RESPONSÁVEL: PESSOA 4 (INTELIGÊNCIA ANALÍTICA E RELATÓRIOS)
+-- PROJETO SISTEMA DE GESTÃO HOSPITALAR DRA. YUSKA MARITAN BRITO
 -- ====================================================================
 
--- 1. Ranking dos residentes por número de atendimentos realizados (mostrar nome e total) [cite: 64]
+-- 1. Ranking dos residentes por número de atendimentos realizados (mostrar nome e total)
 SELECT 
     p.nome AS nome_residente,
     COUNT(a.id_atendimento) AS total_atendimentos
@@ -15,7 +13,7 @@ GROUP BY p.id_pessoa, p.nome
 ORDER BY total_atendimentos DESC;
 
 
--- 2. Preceptores que supervisionaram mais de 5 atendimentos em um determinado mês [cite: 64]
+-- 2. Preceptores que supervisionaram mais de 5 atendimentos em um determinado mês
 -- (Nota: Ajustado para o mês de Junho/2026 que foi o utilizado na carga de dados de teste)
 SELECT 
     p.nome AS nome_preceptor,
@@ -30,7 +28,7 @@ HAVING COUNT(a.id_atendimento) > 5
 ORDER BY total_supervisoes DESC;
 
 
--- 3. Para cada unidade, mostrar a quantidade de plantões escalados por residente [cite: 65]
+-- 3. Para cada unidade, mostrar a quantidade de plantões escalados por residente
 SELECT 
     u.nome AS nome_unidade,
     p.nome AS nome_residente,
@@ -43,7 +41,7 @@ GROUP BY u.id_unidade, u.nome, p.id_pessoa, p.nome
 ORDER BY u.nome, quantidade_plantoes DESC;
 
 
--- 4. Listar pacientes que nunca realizaram nenhum procedimento de nível de risco 'ALTO' [cite: 66]
+-- 4. Listar pacientes que nunca realizaram nenhum procedimento de nível de risco 'ALTO'
 SELECT 
     pac.id_pessoa AS id_paciente,
     p.nome AS nome_paciente,
