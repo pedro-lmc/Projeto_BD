@@ -1,0 +1,66 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Paciente {
+  id               String        @id @default(uuid())
+  nome             String
+  cpf              String        @unique
+  dataNascimento   DateTime
+  tipoSanguineo    String?
+  alergias         String?
+  telefone         String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  atendimentos     Atendimento[]
+  evolucoes        Evolucao[]
+}
+
+model Medico {
+  id               String        @id @default(uuid())
+  nome             String
+  crm              String        @unique
+  especialidade    String
+  atendimentos     Atendimento[]
+}
+
+model Atendimento {
+  id               String      @id @default(uuid())
+  pacienteId       String
+  medicoId         String
+  dataHora         DateTime    @default(now())
+  status           String      @default("AGUARDANDO")
+  queixaPrincipal  String?
+  diagnostico      String?
+  prescricao       String?
+  paciente         Paciente    @relation(fields: [pacienteId], references: [id])
+  medico           Medico      @relation(fields: [medicoId], references: [id])
+}
+
+model Leito {
+  id               String      @id @default(uuid())
+  numero           String      @unique
+  bloco            String
+  status           String      @default("LIVRE")
+}
+
+model Configuracao {
+  id               String      @id @default("default")
+  nomeInstituicao  String
+  email            String?
+  updatedAt        DateTime    @updatedAt
+}
+
+model Evolucao {
+  id               String      @id @default(uuid())
+  pacienteId       String
+  texto            String
+  responsavel      String
+  createdAt        DateTime    @default(now())
+  paciente         Paciente    @relation(fields: [pacienteId], references: [id])
+}

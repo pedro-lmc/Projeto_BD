@@ -1,38 +1,146 @@
-[README (2).md](https://github.com/user-attachments/files/30033896/README.2.md)
-# Sistema de Gestão Hospitalar Dra. Yuska Maritan Brito - Etapa 1
+# Sistema de Gestão Hospitalar Dra. Yuska Maritan Brito
 
-Este repositório contém a primeira etapa do desenvolvimento do banco de dados relacional para o Hospital Universitário Dra. [cite_start]Yuska Maritan Brito[cite: 3]. [cite_start]O projeto engloba a modelagem conceitual, lógica e física do sistema, com a implementação de scripts DDL e DML utilizando SQL puro (sem o uso de ORMs nesta fase)[cite: 20, 28].
+Este repositório contém a evolução completa da infraestrutura de banco de dados e aplicação web para o Hospital Universitário Dra. Yuska Maritan Brito, dividida e organizada em duas etapas integradas.
 
-Toda a carga inicial foi gerada utilizando dados 100% simulados. O banco está a rodar num ambiente restrito de desenvolvimento, sem a recolha de dados reais de pacientes, assegurando a total privacidade e segurança das informações durante a fase de testes da infraestrutura.
+---
 
-# Arquitetura e Modelagem
+## Arquitetura e Modelagem (Etapa 1)
 
-[cite_start]O projeto foi rigorosamente normalizado até à **3ª Forma Normal (3FN)**[cite: 20]. A principal decisão arquitetural de destaque é a **Especialização da Entidade Pessoa**:
-Para evitar redundâncias e valores nulos (`NULL`) indesejados, a tabela central `PESSOA` foi desmembrada utilizando o conceito de herança relacional. [cite_start]Ela divide-se de forma mutuamente exclusiva para as regras de negócio de base em `PACIENTE` e `PROFISSIONAL`[cite: 4, 5]. [cite_start]Posteriormente, a entidade `PROFISSIONAL` especializa-se em `RESIDENTE` e `PRECEPTOR`, garantindo que chaves e dependências funcionais fiquem perfeitamente isoladas[cite: 6].
+O banco de dados foi normalizado até à **3ª Forma Normal (3FN)**, com as seguintes entidades principais:
 
-[cite_start]O Modelo Relacional (Diagrama de Entidade-Relacionamento) completo em formato PDF, com todas as justificativas de cardinalidades, encontra-se na raiz deste repositório[cite: 51, 52].
+* **Paciente** — dados pessoais, CPF, tipo sanguíneo, alergias e histórico de contato.
+* **Medico** — dados profissionais e CRM.
+* **Atendimento** — vincula Paciente e Medico, com status, diagnóstico e prescrição.
+* **Leito** — controle de ocupação por bloco/status.
+* **Evolucao** — registros de evolução clínica do paciente.
+* **Configuracao** — parâmetros administrativos da instituição.
 
-# Como Instalar e Executar
+Toda a carga inicial foi gerada utilizando dados 100% simulados. O banco roda num ambiente restrito de desenvolvimento, sem a recolha de dados reais de pacientes, assegurando a total privacidade e segurança das informações durante a fase de testes da infraestrutura.
 
-**Pré-requisitos:**
-* [cite_start]SGBD PostgreSQL (Recomendado) ou MySQL[cite: 24].
-* [cite_start]Ferramenta de execução de queries (DBeaver, pgAdmin, ou CLI)[cite: 25].
+---
 
-Para que o sistema funcione corretamente e sem erros de dependência de chaves estrangeiras, os scripts devem ser executados **estritamente na ordem abaixo**:
+## Evolução Full-Stack (Etapa 2)
 
-### Passo 1: Infraestrutura e Carga Inicial (DDL)
-Execute primeiro o script de criação das tabelas. [cite_start]Ele contém as instruções `DROP TABLE IF EXISTS ... CASCADE` para garantir a idempotência do ambiente, seguido pelos comandos `CREATE TABLE` com todas as *constraints* (PK, FK, UNIQUE, CHECK)[cite: 55].
-* **Ficheiro:** `01_criacao_tabelas_e_carga.sql` (ou o nome exato que o Vinicius colocou)
-* [cite_start]*Nota:* Este script já inclui o povoamento do banco com a massa de dados simulada (pacientes, profissionais, unidades, atendimentos e procedimentos) exigida para testes[cite: 56].
+Na Etapa 2, a infraestrutura relacional pura foi integrada a uma aplicação web moderna:
+* **Banco de Dados:** PostgreSQL (via Docker Compose ou instalação local).
+* **Mapeamento Objeto-Relacional (ORM):** Prisma ORM integrando os scripts legados em SQL puro da Etapa 1.
+* **Backend:** API RESTful robusta desenvolvida em Node.js e Express.
+* **Frontend:** Interface e Painel Administrativo em Next.js (React) estilizados com Tailwind CSS.
 
-### Passo 2: Operações Diárias (DML Essencial)
-Após as tabelas estarem povoadas, execute o script de CRUD. [cite_start]Ele contém as queries puras responsáveis por inserir novos atendimentos validando regras de negócio, atualizar dados cadastrais e listar informações fundamentais da rotina hospitalar[cite: 57, 58, 59, 60, 61].
-* **Ficheiro:** `02_consultas_crud_basico.sql` (ou o nome exato dado pela Pessoa 3)
+---
 
-### Passo 3: Inteligência Analítica (DML Avançado)
-Por fim, execute o script focado em relatórios gerenciais e agregação de dados. [cite_start]Este ficheiro demonstra a capacidade analítica da arquitetura através de *rankings* de atendimento por residente, volumetria de plantões e cruzamento de níveis de risco[cite: 63, 64, 65, 66].
-* **Ficheiro:** `03_consultas_analiticas.sql` (ou o nome exato dado pela Pessoa 4)
+## 📂 Estrutura do Repositório
 
-#Próximos Passos (Etapa 2)
+```text
+Projeto-Hospital-PostgreSQL/
+├── Backend/
+│   ├── prisma/
+│   │   ├── sql_legacy/              <-- Scripts SQL Originais da Etapa 1
+│   │   │   ├── 01_create_tables.sql
+│   │   │   ├── 02_insert_test_data.sql
+│   │   │   ├── 03_dml_operacoes.sql
+│   │   │   └── 04_dml_avancado.sql
+│   │   ├── schema.prisma
+│   │   └── seed.js                  <-- Carga automática dos dados da Etapa 1
+│   ├── src/                         <-- Controllers e Rotas em Node.js
+│   ├── docker-compose.yml
+│   └── package.json
+├── Frontend/                        <-- Interface Web em Next.js
+└── README.md
+```
 
-A infraestrutura consolidada nesta primeira fase serve como fundação de alta disponibilidade. [cite_start]Na próxima etapa, o sistema receberá gatilhos (*Triggers*), procedimentos armazenados (*Stored Procedures*) e será integrado a um backend robusto (como Python e Flask) através de Mapeamento Objeto-Relacional (ORM)[cite: 71, 94]. Esta base relacional limpa suportará o posterior mapeamento de fluxos lógicos, fundamental para a elaboração de robôs de atendimento, além de fornecer os dados metodológicos necessários para a escrita do nosso relato técnico e artigo científico.
+---
+
+## Como Instalar e Executar
+
+### Pré-requisitos
+* **Node.js** (v18+)
+* **PostgreSQL** — via **Docker** (Opção 1) **ou** instalado localmente (Opção 2)
+
+Escolha uma das duas opções abaixo para subir o banco de dados.
+
+---
+
+### Opção 1: Usando Docker
+
+Recomendada se você já tem o Docker Desktop instalado e a virtualização habilitada na BIOS/Windows.
+
+#### 1. Suba o container do PostgreSQL
+```bash
+cd Backend
+docker compose up -d
+```
+> Nas versões mais recentes do Docker, o comando é `docker compose` (sem hífen, com espaço). O antigo `docker-compose` pode não estar mais disponível.
+
+#### 2. Confirme que o container subiu
+```bash
+docker ps
+```
+Deve aparecer o container `hospital_postgres` com status `Up`.
+
+#### 3. As credenciais do banco (usuário, senha, nome) precisam bater entre dois arquivos:
+- `Backend/docker-compose.yml` (variáveis `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`)
+- `Backend/.env` (variável `DATABASE_URL`)
+
+Confira se ambos estão alinhados antes de seguir.
+
+---
+
+### Opção 2: Usando PostgreSQL local (sem Docker)
+
+Alternativa caso não tenha Docker instalado ou não consiga habilitar a virtualização no seu computador.
+
+#### 1. Instale o PostgreSQL
+Baixe em: https://www.postgresql.org/download/
+
+#### 2. Crie o banco de dados
+Abra o `psql` (ou "SQL Shell") e rode:
+```sql
+CREATE DATABASE "Hospital_db";
+```
+> Atenção às aspas duplas e ao "H" maiúsculo — o nome do banco é *case-sensitive*.
+
+#### 3. Ajuste o `Backend/.env`
+Configure a `DATABASE_URL` com o usuário/senha definidos na sua instalação local:
+```
+DATABASE_URL="postgresql://postgres:SUA_SENHA@localhost:5432/Hospital_db?schema=public"
+```
+
+---
+
+### Configurando o Backend
+
+Depois de ter o banco no ar (por qualquer uma das opções acima):
+
+```bash
+cd Backend
+npm install
+npx prisma generate
+npx prisma migrate dev
+npm run dev
+```
+
+O servidor deve subir em `http://localhost:4000`.
+
+> **No Windows (PowerShell)**, se precisar limpar uma instalação anterior (por exemplo, um `node_modules` copiado de outra máquina/sistema operacional, o que causa erro de engine do Prisma incompatível), use:
+> ```powershell
+> Remove-Item -Recurse -Force node_modules
+> Remove-Item -Force package-lock.json
+> ```
+> (o comando `rm -rf` do Linux/Mac não funciona no PowerShell)
+
+> ⚠️ **`npm run db:seed` está temporariamente quebrado** — o script referencia um modelo `Unidade` que não existe mais no `schema.prisma` atual. Pode ser ignorado por enquanto; a aplicação funciona normalmente sem os dados de exemplo.
+
+---
+
+### Configurando o Frontend
+
+Em um **segundo terminal** (deixe o Backend rodando no primeiro):
+
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+
+Acesse **http://localhost:3000** no navegador. O Frontend consome a API em `http://localhost:4000`, então o Backend precisa estar rodando ao mesmo tempo.
