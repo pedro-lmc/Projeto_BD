@@ -62,18 +62,11 @@ END;
 $$;
 
 -- 1.2 sp_calcular_tempo_medio_espera
--- Para cada unidade, tempo médio entre a chegada do paciente (data_hora do
--- atendimento) e o início do primeiro procedimento daquele atendimento.
--- Como ATENDIMENTO não tem id_unidade diretamente no modelo (o vínculo com
--- unidade acontece via ESCALA do residente que atendeu), agregamos pela
--- unidade do plantão do residente no dia/turno mais próximo do atendimento.
--- Aqui simplificamos: cada procedimento realizado grava apenas tempo_real,
--- não um horário de início próprio — então usamos duracao_minutos acumulada
--- até o procedimento como proxy do "início do primeiro procedimento" = 0min
--- (o primeiro procedimento começa junto com o atendimento). Deixamos a
--- função pronta para caso o modelo passe a registrar hora de início por
--- procedimento (extensão natural: adicionar coluna hora_inicio em
--- PROCEDIMENTO_REALIZADO).
+-- Para cada unidade, calcula o tempo médio entre a chegada do paciente
+-- (data_hora do atendimento) e o início do primeiro procedimento registrado.
+-- Para isso, usa a coluna hora_inicio em PROCEDIMENTO_REALIZADO quando
+-- disponível; caso não exista valor, considera o início do primeiro
+-- procedimento igual à data_hora do atendimento.
 CREATE OR REPLACE FUNCTION sp_calcular_tempo_medio_espera()
 RETURNS TABLE(id_unidade INTEGER, nome_unidade VARCHAR, tempo_medio_espera_minutos NUMERIC)
 LANGUAGE sql
@@ -81,12 +74,17 @@ AS $$
     SELECT
         u.id_unidade,
         u.nome,
-        ROUND(AVG(0)::NUMERIC, 2) AS tempo_medio_espera_minutos
-        -- placeholder de 0 min até o modelo registrar hora_inicio por procedimento;
-        -- a estrutura da consulta (join atendimento -> escala -> unidade) já está pronta.
+        ROUND(AVG(EXTRACT(EPOCH FROM COALESCE(pr.hora_inicio, a.data_hora) - a.data_hora) / 60)::NUMERIC, 2) AS tempo_medio_espera_minutos
     FROM UNIDADE u
     LEFT JOIN ESCALA e ON e.id_unidade = u.id_unidade
     LEFT JOIN ATENDIMENTO a ON a.id_residente = e.id_residente
+    LEFT JOIN LATERAL (
+        SELECT pr.hora_inicio
+        FROM PROCEDIMENTO_REALIZADO pr
+        WHERE pr.id_atendimento = a.id_atendimento
+        ORDER BY pr.id_atendimento, pr.id_procedimento
+        LIMIT 1
+    ) pr ON TRUE
     GROUP BY u.id_unidade, u.nome
     ORDER BY u.id_unidade;
 $$;

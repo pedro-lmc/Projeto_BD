@@ -90,6 +90,7 @@ CREATE TABLE PROCEDIMENTO_REALIZADO (
     id_procedimento    INTEGER NOT NULL REFERENCES PROCEDIMENTO(id_procedimento),
     quantidade         INTEGER NOT NULL DEFAULT 1 CHECK (quantidade > 0),
     tempo_real_minutos INTEGER NOT NULL CHECK (tempo_real_minutos > 0),
+    hora_inicio        TIMESTAMP,
     observacao         TEXT,
     faturado           BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id_atendimento, id_procedimento)

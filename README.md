@@ -1,114 +1,134 @@
-# Sistema de Gestão Hospitalar Dra. Yuska Maritan Brito
+﻿# Sistema de Gestão Hospitalar Dra. Yuska Maritan Brito
 
-Este repositório contém a evolução completa da infraestrutura de banco de dados e aplicação web para o Hospital Universitário Dra. Yuska Maritan Brito, dividida e organizada em duas etapas integradas.
+Este repositório reúne a modelagem relacional do banco de dados e uma aplicação web full-stack para o Hospital Universitário Dra. Yuska Maritan Brito.
 
----
+## Visão geral
 
-## Arquitetura e Modelagem (Etapa 1)
+O projeto atual inclui:
 
-O banco de dados foi normalizado até à **3ª Forma Normal (3FN)**, com as seguintes entidades principais:
+- um banco relacional em PostgreSQL com modelagem baseada em entidades como Pessoa, Paciente, Profissional, Preceptor, Residente, Unidade, Atendimento, Procedimento, Internação e Escala;
+- integração com Prisma ORM para manipulação dos dados;
+- uma API REST em Node.js e Express;
+- um frontend em Next.js com páginas para agenda, pacientes, leitos, prontuário, financeiro e configurações.
 
-* **Paciente** — dados pessoais, CPF, tipo sanguíneo, alergias e histórico de contato.
-* **Medico** — dados profissionais e CRM.
-* **Atendimento** — vincula Paciente e Medico, com status, diagnóstico e prescrição.
-* **Leito** — controle de ocupação por bloco/status.
-* **Evolucao** — registros de evolução clínica do paciente.
-* **Configuracao** — parâmetros administrativos da instituição.
+## Stack utilizada
 
-Os dados de exemplo são usados apenas para demonstrar o fluxo do sistema em ambiente de desenvolvimento, sem envolver dados reais de pacientes.
+- Backend: Node.js, Express, Prisma, PostgreSQL
+- Frontend: Next.js 14, React 18, Tailwind CSS, Recharts, Lucide React
+- Infra: Docker Compose para o banco de dados
 
----
-
-## Evolução Full-Stack (Etapa 2)
-
-Na Etapa 2, a infraestrutura relacional pura foi integrada a uma aplicação web moderna:
-* **Banco de Dados Conteinerizado:** PostgreSQL orquestrado via Docker Compose.
-* **Mapeamento Objeto-Relacional (ORM):** Prisma ORM integrando os scripts legados em SQL puro da Etapa 1.
-* **Backend:** API RESTful robusta desenvolvida em Node.js e Express.
-* **Frontend:** Interface e Painel Administrativo em Next.js (React) estilizados com Tailwind CSS.
-
----
-
-## 📂 Estrutura do Repositório
+## Estrutura do repositório
 
 ```text
-Projeto-Hospital-PostgreSQL/
+Projeto_BD/
 ├── Backend/
 │   ├── prisma/
-│   │   ├── sql_legacy/              <-- Scripts SQL Originais da Etapa 1
-│   │   │   ├── 01_create_tables.sql
-│   │   │   ├── 02_insert_test_data.sql
-│   │   │   ├── 03_dml_operacoes.sql
-│   │   │   └── 04_dml_avancado.sql
+│   │   ├── migrations/
+│   │   ├── sql/
+│   │   ├── sql_legacy/
 │   │   ├── schema.prisma
-│   │   └── seed.js                  <-- Carga automática dos dados da Etapa 1
-│   ├── src/                         <-- Controllers e Rotas em Node.js
+│   │   └── seed.js
+│   ├── src/
+│   │   ├── controllers/
+│   │   ├── data/
+│   │   ├── orm/
+│   │   ├── routes/
+│   │   └── server.js
 │   ├── docker-compose.yml
 │   └── package.json
-├── Frontend/                        <-- Interface Web em Next.js
+├── Frontend/
+│   ├── src/
+│   ├── package.json
+│   └── tailwind.config.js
 └── README.md
 ```
 
-## Como Instalar e Executar
+## Pré-requisitos
 
-### Pré-requisitos
-* **Node.js** (v18+)
-* **PostgreSQL** instalado e rodando **ou** **Docker** instalado e rodando (escolha uma das opções abaixo)
+- Node.js 18 ou superior
+- npm
+- Docker Desktop (opcional, para subir o banco via contêiner)
+- PostgreSQL local (opcional, se não for usar Docker)
 
----
+## Configuração do banco
 
-### Opção 1: Execução com Docker Compose
+### Opção 1: com Docker Compose
 
-Recomendada se você já tem o Docker Desktop instalado e a virtualização habilitada na BIOS/Windows.
+No diretório do backend, suba o container do PostgreSQL:
 
-#### 1. Subir o Container do PostgreSQL
 ```bash
 cd Backend
 docker compose up -d
 ```
-> Nas versões mais recentes do Docker, o comando é `docker compose` (sem hífen). O antigo `docker-compose` pode não estar disponível.
 
----
+Isso cria um banco chamado Hospital_db com usuário postgres e senha vinicius07.
 
-### Opção 2: Execução com PostgreSQL local (sem Docker)
+### Opção 2: com PostgreSQL local
 
-Se preferir não usar Docker (ou não conseguir habilitar a virtualização), instale o PostgreSQL diretamente:
+1. Instale o PostgreSQL.
+2. Crie o banco:
 
-1. Baixe e instale em https://www.postgresql.org/download/
-2. Crie o banco `Hospital_db` (atenção ao H maiúsculo):
 ```sql
-   CREATE DATABASE "Hospital_db";
+CREATE DATABASE "Hospital_db";
 ```
-3. Ajuste o `Backend/.env` com o usuário/senha definidos na sua instalação.
 
----
+3. Crie um arquivo Backend/.env com a URL de conexão, por exemplo:
 
-### Configurando o Backend
+```env
+PORT=4000
+DATABASE_URL="postgresql://postgres:vinicius07.:@localhost:5432/Hospital_db?schema=public"
+```
+
+## Configuração do backend
 
 ```bash
 cd Backend
 npm install
-npx prisma generate
-npx prisma migrate dev
+npm run db:setup
+npm run db:seed
 npm run dev
 ```
 
-> **No Windows (PowerShell)**, se precisar limpar uma instalação anterior (ex: `node_modules` copiado de outra máquina), use:
-> ```powershell
-> Remove-Item -Recurse -Force node_modules
-> Remove-Item -Force package-lock.json
-> ```
-> (o comando `rm -rf` do Linux/Mac não funciona no PowerShell)
+O comando npm run db:setup executa:
 
-> ⚠️ **`npm run db:seed` está temporariamente quebrado** — o script referencia um modelo `Unidade` que não existe mais no `schema.prisma` atual. Pode ser ignorado por enquanto; a aplicação funciona normalmente sem os dados de exemplo.
+- prisma generate
+- prisma migrate
+- aplicação do SQL de procedures, triggers e views em 02_procedures_triggers_views.sql
 
-### Configurando o Frontend
+O backend ficará disponível em http://localhost:4000.
+
+Você também pode verificar a API com:
+
+```bash
+curl http://localhost:4000/api/health
+```
+
+## Configuração do frontend
 
 Em outro terminal:
+
 ```bash
 cd Frontend
 npm install
 npm run dev
 ```
 
-Acesse `http://localhost:3000` (com o Backend rodando em `http://localhost:4000`).
+O frontend ficará disponível em http://localhost:3000.
+
+## Scripts úteis do backend
+
+- npm run dev: inicia o servidor em modo desenvolvimento
+- npm run start: inicia o servidor em modo produção
+- npm run db:setup: gera o cliente Prisma, aplica migrações e carrega procedures/triggers/views
+- npm run db:seed: popula o banco com dados de exemplo
+- npm run orm:consultas: executa demonstrações de consultas avançadas
+- npm run orm:concorrencia: executa a demonstração de concorrência
+
+## Observação para Windows PowerShell
+
+Se houver problemas com dependências antigas, pode ser útil limpar os diretórios locais antes de reinstalar:
+
+```powershell
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force package-lock.json
+```

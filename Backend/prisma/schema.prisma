@@ -149,6 +149,7 @@ model ProcedimentoRealizado {
 
   quantidade       Int          @default(1)
   tempoRealMinutos Int          @map("tempo_real_minutos")
+  horaInicio       DateTime?    @map("hora_inicio")
   observacao       String?
   faturado         Boolean      @default(false) // usada para bloquear remoção (req. Etapa 1)
 
