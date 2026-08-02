@@ -42,6 +42,7 @@ model Paciente {
 
   atendimentos   Atendimento[]
   internacoes    Internacao[]
+  evolucoes      Evolucao[]
 
   @@map("paciente")
 }
@@ -200,6 +201,24 @@ model Internacao {
   dataHoraSaida   DateTime? @map("data_hora_saida") // NULL = ainda internado
 
   @@map("internacao")
+}
+
+// ----------------------------------------------------------------------------
+// EVOLUCAO (registros de evolução clínica lançados manualmente no PEP)
+// ----------------------------------------------------------------------------
+
+model Evolucao {
+  id          Int      @id @default(autoincrement()) @map("id_evolucao")
+
+  pacienteId  Int      @map("id_paciente")
+  paciente    Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  texto       String
+  responsavel String   @db.VarChar(150)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("evolucao")
 }
 
 // ----------------------------------------------------------------------------

@@ -12,18 +12,25 @@ async function mapearUnidade(unidade) {
 
   return {
     id: unidade.id,
-    numero: unidade.id,
+    numero: unidade.nome,
     nome: unidade.nome,
+    bloco: unidade.tipo,
     tipo: unidade.tipo,
     capacidadeLeitos: unidade.capacidadeLeitos,
-    status: ocupados > 0 ? 'OCUPADO' : 'DISPONIVEL',
+    status: ocupados > 0 ? 'OCUPADO' : 'LIVRE',
     ocupados
   };
 }
 
 exports.listarLeitos = async (req, res) => {
   try {
-    const unidades = await prisma.unidade.findMany({ orderBy: { id: 'asc' } });
+    // capacidadeLeitos = 1 identifica os leitos individuais nomeados
+    // (as unidades "guarda-chuva", como UTI Adulto, têm capacidade > 1
+    // e não devem aparecer como leitos avulsos na grade)
+    const unidades = await prisma.unidade.findMany({
+      where: { capacidadeLeitos: 1 },
+      orderBy: { id: 'asc' }
+    });
     const leitos = await Promise.all(unidades.map(mapearUnidade));
     res.json(leitos);
   } catch (error) {

@@ -6,17 +6,23 @@ exports.listarEvolucoesPorPaciente = async (req, res) => {
   const { pacienteId } = req.params;
 
   try {
-    const atendimentos = await prisma.atendimento.findMany({
-      where: { pacienteId: Number(pacienteId) },
-      include: {
-        preceptor: { include: { profissional: { include: { pessoa: true } } } },
-        procedimentosRealizados: { include: { procedimento: true } }
-      },
-      orderBy: { dataHora: 'desc' }
-    });
+    const [atendimentos, evolucoesRegistradas] = await Promise.all([
+      prisma.atendimento.findMany({
+        where: { pacienteId: Number(pacienteId) },
+        include: {
+          preceptor: { include: { profissional: { include: { pessoa: true } } } },
+          procedimentosRealizados: { include: { procedimento: true } }
+        },
+        orderBy: { dataHora: 'desc' }
+      }),
+      prisma.evolucao.findMany({
+        where: { pacienteId: Number(pacienteId) },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
 
-    const evolucoes = atendimentos.map((atendimento) => ({
-      id: atendimento.id,
+    const evolucoesDeAtendimento = atendimentos.map((atendimento) => ({
+      id: `atendimento-${atendimento.id}`,
       pacienteId: atendimento.pacienteId,
       texto: atendimento.procedimentosRealizados?.length
         ? `Atendimento com ${atendimento.procedimentosRealizados.length} procedimento(s) registrado(s).`
@@ -24,6 +30,18 @@ exports.listarEvolucoesPorPaciente = async (req, res) => {
       responsavel: atendimento.preceptor?.profissional?.pessoa?.nome || 'Equipe médica',
       createdAt: atendimento.dataHora
     }));
+
+    const evolucoesManuais = evolucoesRegistradas.map((ev) => ({
+      id: `evolucao-${ev.id}`,
+      pacienteId: ev.pacienteId,
+      texto: ev.texto,
+      responsavel: ev.responsavel,
+      createdAt: ev.createdAt
+    }));
+
+    const evolucoes = [...evolucoesManuais, ...evolucoesDeAtendimento].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
 
     res.json(evolucoes);
   } catch (error) {
@@ -40,22 +58,27 @@ exports.criarEvolucao = async (req, res) => {
   }
 
   try {
-    const paciente = await prisma.paciente.findUnique({ where: { id: Number(pacienteId) }, include: { pessoa: true } });
+    const paciente = await prisma.paciente.findUnique({ where: { id: Number(pacienteId) } });
 
     if (!paciente) {
       return res.status(404).json({ error: 'Paciente não encontrado.' });
     }
 
-    const evolucao = {
-      id: Date.now(),
-      pacienteId: Number(pacienteId),
-      texto: String(texto).trim(),
-      responsavel: responsavel && String(responsavel).trim() ? String(responsavel).trim() : 'Dra. Yuska Maritan',
-      createdAt: new Date().toISOString(),
-      origem: 'atendimento'
-    };
+    const evolucaoCriada = await prisma.evolucao.create({
+      data: {
+        pacienteId: Number(pacienteId),
+        texto: String(texto).trim(),
+        responsavel: responsavel && String(responsavel).trim() ? String(responsavel).trim() : 'Dra. Yuska Maritan'
+      }
+    });
 
-    res.status(201).json(evolucao);
+    res.status(201).json({
+      id: `evolucao-${evolucaoCriada.id}`,
+      pacienteId: evolucaoCriada.pacienteId,
+      texto: evolucaoCriada.texto,
+      responsavel: evolucaoCriada.responsavel,
+      createdAt: evolucaoCriada.createdAt
+    });
   } catch (error) {
     console.error('Erro ao criar evolução:', error);
     res.status(500).json({ error: 'Erro ao criar evolução.' });

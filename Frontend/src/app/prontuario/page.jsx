@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Stethoscope, AlertCircle, Plus, Search, X, User, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Stethoscope, AlertCircle, Plus, Search, X, RefreshCw } from 'lucide-react';
 import { normalizarEvolucoes, normalizarPacientes } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -100,12 +100,26 @@ export default function ProntuarioPage() {
     }
   };
 
-  const pacientesFiltrados = busca
-    ? pacientes.filter((p) =>
-        p.nome?.toLowerCase().includes(busca.toLowerCase()) ||
-        p.cpf?.toLowerCase().includes(busca.toLowerCase())
-      )
-    : [];
+  // Lista completa, sempre em ordem alfabética por nome
+  const pacientesOrdenados = useMemo(
+    () =>
+      [...pacientes].sort((a, b) =>
+        (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+      ),
+    [pacientes]
+  );
+
+  // A busca é só um filtro sobre a lista completa — nunca esconde tudo
+  const pacientesFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return pacientesOrdenados;
+
+    return pacientesOrdenados.filter(
+      (p) =>
+        p.nome?.toLowerCase().includes(termo) ||
+        p.cpf?.toLowerCase().includes(termo)
+    );
+  }, [pacientesOrdenados, busca]);
 
   return (
     <div className="p-8 space-y-6">
@@ -117,7 +131,7 @@ export default function ProntuarioPage() {
         <button
           onClick={() => {
             if (!selecionado) {
-              alert('Selecione um paciente na busca antes de adicionar uma evolução.');
+              alert('Selecione um paciente na lista antes de adicionar uma evolução.');
               return;
             }
             setIsModalOpen(true);
@@ -128,107 +142,126 @@ export default function ProntuarioPage() {
         </button>
       </div>
 
-      {/* Busca de paciente */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 relative">
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-          <input
-            type="text"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar paciente por nome ou CPF para abrir o prontuário..."
-            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:ring-1 focus:ring-teal-500"
-          />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Coluna da esquerda: lista de pacientes + filtro */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden lg:max-h-[calc(100vh-220px)]">
+          <div className="p-4 border-b border-slate-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Filtrar por nome ou CPF..."
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 outline-none focus:ring-1 focus:ring-teal-500"
+              />
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">
+              {pacientesFiltrados.length} de {pacientesOrdenados.length} paciente(s)
+            </p>
+          </div>
 
-        {busca && (
-          <div className="absolute left-4 right-4 top-full mt-1 bg-white border border-slate-100 rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto">
+          <div className="overflow-y-auto">
             {pacientesFiltrados.length > 0 ? (
               pacientesFiltrados.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => {
-                    selecionarPaciente(p);
-                    setBusca('');
-                  }}
-                  className="w-full text-left px-4 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0 flex items-center gap-2 cursor-pointer"
+                  onClick={() => selecionarPaciente(p)}
+                  className={`w-full text-left px-4 py-3 border-b border-slate-50 last:border-0 flex items-center gap-3 cursor-pointer transition-colors ${
+                    selecionado?.id === p.id ? 'bg-teal-50' : 'hover:bg-slate-50'
+                  }`}
                 >
-                  <User size={14} className="text-slate-400" />
-                  <span className="text-sm font-semibold text-slate-700">{p.nome}</span>
-                  <span className="text-xs text-slate-400">{p.cpf}</span>
+                  <div
+                    className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center font-bold text-xs ${
+                      selecionado?.id === p.id
+                        ? 'bg-[#00A884] text-white'
+                        : 'bg-teal-100 text-[#00A884]'
+                    }`}
+                  >
+                    {p.nome?.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-700 truncate">{p.nome}</p>
+                    <p className="text-xs text-slate-400">{p.cpf}</p>
+                  </div>
                 </button>
               ))
             ) : (
-              <p className="px-4 py-3 text-xs text-slate-400">Nenhum paciente encontrado.</p>
+              <p className="px-4 py-6 text-center text-xs text-slate-400">
+                Nenhum paciente encontrado para esse filtro.
+              </p>
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {selecionado ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-teal-100 text-[#00A884] rounded-2xl flex items-center justify-center font-bold text-lg">
-                {selecionado.nome?.slice(0, 2).toUpperCase()}
-              </div>
-              <div>
-                <h2 className="font-bold text-slate-800">{selecionado.nome}</h2>
-                <p className="text-xs text-slate-400">
-                  {calcularIdade(selecionado.dataNascimento)} anos • Sangue: {selecionado.tipoSanguineo || 'Não informado'}
-                </p>
-              </div>
-            </div>
-            <hr className="border-slate-100" />
-            <div>
-              <p className="text-xs font-bold text-red-500 uppercase flex items-center gap-1"><AlertCircle size={14} /> Alergias</p>
-              <p className="text-sm text-slate-700 mt-0.5">{selecionado.alergias || 'Nenhuma alergia registrada'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-400 uppercase">Telefone</p>
-              <p className="text-sm text-slate-700 mt-0.5">{selecionado.telefone}</p>
-            </div>
-          </div>
-
-          <div className="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800">Histórico de Evoluções</h3>
-              <button
-                type="button"
-                onClick={atualizarProntuario}
-                disabled={atualizando || !selecionado}
-                className="flex items-center gap-2 text-sm font-semibold text-[#00A884] disabled:text-slate-400 disabled:cursor-not-allowed"
-              >
-                <RefreshCw size={15} className={atualizando ? 'animate-spin' : ''} />
-                {atualizando ? 'Atualizando...' : 'Atualizar prontuário'}
-              </button>
-            </div>
-            {evolucoes.length > 0 ? (
-              <div className="space-y-3">
-                {evolucoes.map((ev) => (
-                  <div key={ev.id} className="p-4 bg-slate-50 rounded-xl space-y-2 border border-slate-100">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-sm text-slate-800">Evolução Clínica</span>
-                      <span className="text-xs text-slate-400">
-                        {new Date(ev.createdAt).toLocaleDateString('pt-BR')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600">{ev.texto}</p>
-                    <p className="text-xs font-semibold text-[#00A884]">Responsável: {ev.responsavel}</p>
+        {/* Coluna da direita: prontuário do paciente selecionado */}
+        <div className="lg:col-span-2 space-y-6">
+          {selecionado ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4 md:col-span-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-teal-100 text-[#00A884] rounded-2xl flex items-center justify-center font-bold text-lg">
+                    {selecionado.nome?.slice(0, 2).toUpperCase()}
                   </div>
-                ))}
+                  <div>
+                    <h2 className="font-bold text-slate-800">{selecionado.nome}</h2>
+                    <p className="text-xs text-slate-400">
+                      {calcularIdade(selecionado.dataNascimento)} anos • Sangue: {selecionado.tipoSanguineo || 'Não informado'}
+                    </p>
+                  </div>
+                </div>
+                <hr className="border-slate-100" />
+                <div>
+                  <p className="text-xs font-bold text-red-500 uppercase flex items-center gap-1"><AlertCircle size={14} /> Alergias</p>
+                  <p className="text-sm text-slate-700 mt-0.5">{selecionado.alergias || 'Nenhuma alergia registrada'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Telefone</p>
+                  <p className="text-sm text-slate-700 mt-0.5">{selecionado.telefone}</p>
+                </div>
               </div>
-            ) : (
-              <p className="text-sm text-slate-400 text-center py-6">Nenhuma evolução registrada para este paciente ainda.</p>
-            )}
-          </div>
+
+              <div className="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800">Histórico de Evoluções</h3>
+                  <button
+                    type="button"
+                    onClick={atualizarProntuario}
+                    disabled={atualizando || !selecionado}
+                    className="flex items-center gap-2 text-sm font-semibold text-[#00A884] disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw size={15} className={atualizando ? 'animate-spin' : ''} />
+                    {atualizando ? 'Atualizando...' : 'Atualizar prontuário'}
+                  </button>
+                </div>
+                {evolucoes.length > 0 ? (
+                  <div className="space-y-3">
+                    {evolucoes.map((ev) => (
+                      <div key={ev.id} className="p-4 bg-slate-50 rounded-xl space-y-2 border border-slate-100">
+                        <div className="flex justify-between items-center">
+                          <span className="font-bold text-sm text-slate-800">Evolução Clínica</span>
+                          <span className="text-xs text-slate-400">
+                            {new Date(ev.createdAt).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600">{ev.texto}</p>
+                        <p className="text-xs font-semibold text-[#00A884]">Responsável: {ev.responsavel}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400 text-center py-6">Nenhuma evolução registrada para este paciente ainda.</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
+              <Stethoscope className="mx-auto text-slate-300 mb-3" size={36} />
+              <p className="text-sm text-slate-400">Selecione um paciente na lista à esquerda para visualizar o prontuário.</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
-          <Stethoscope className="mx-auto text-slate-300 mb-3" size={36} />
-          <p className="text-sm text-slate-400">Busque um paciente acima para visualizar o prontuário.</p>
-        </div>
-      )}
+      </div>
 
       {isModalOpen && selecionado && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
