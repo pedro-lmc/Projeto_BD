@@ -10,6 +10,7 @@ router.get('/atendimentos', atendimentoController.listarAtendimentos);
 router.get('/atendimentos/hoje', atendimentoController.listarAtendimentos);
 router.post('/atendimentos', atendimentoController.criarAtendimento);
 router.patch('/atendimentos/:id/status', atendimentoController.atualizarStatus);
+router.delete('/atendimentos/:id', atendimentoController.excluirAtendimento);
 
 router.get('/pacientes', pacienteController.listarPacientes);
 router.post('/pacientes', pacienteController.criarPaciente);

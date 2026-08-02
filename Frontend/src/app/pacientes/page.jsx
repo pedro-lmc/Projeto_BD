@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Users, UserPlus, Search, X } from 'lucide-react';
+import { normalizarPacientes } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -23,7 +24,7 @@ export default function PacientesPage() {
       const res = await fetch(`${API_BASE_URL}/api/pacientes`);
       if (res.ok) {
         const data = await res.json();
-        setPacientes(data);
+        setPacientes(normalizarPacientes(data));
       }
     } catch (err) {
       console.error('Erro ao carregar pacientes:', err);

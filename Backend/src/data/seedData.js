@@ -1,0 +1,224 @@
+const pacientes = [
+  {
+    id: 1,
+    nome: 'Ana Beatriz Souza',
+    cpf: '12345678901',
+    dataNascimento: '1990-03-12T00:00:00.000Z',
+    telefone: '(83) 98877-1122',
+    tipoSanguineo: 'O+',
+    alergias: 'Penicilina',
+    atendimentos: [],
+    createdAt: '2026-07-20T09:00:00.000Z'
+  },
+  {
+    id: 2,
+    nome: 'Carlos Eduardo Lima',
+    cpf: '98765432100',
+    dataNascimento: '1987-11-08T00:00:00.000Z',
+    telefone: '(83) 99765-2211',
+    tipoSanguineo: 'A+',
+    alergias: 'Dipirona',
+    atendimentos: [],
+    createdAt: '2026-07-22T11:15:00.000Z'
+  },
+  {
+    id: 3,
+    nome: 'Marina Torres',
+    cpf: '45678912355',
+    dataNascimento: '1994-06-24T00:00:00.000Z',
+    telefone: '(83) 99123-4455',
+    tipoSanguineo: 'B+',
+    alergias: 'Nenhuma',
+    atendimentos: [],
+    createdAt: '2026-07-25T14:00:00.000Z'
+  },
+  {
+    id: 4,
+    nome: 'João Pedro Nunes',
+    cpf: '78912345677',
+    dataNascimento: '1979-01-30T00:00:00.000Z',
+    telefone: '(83) 98555-7788',
+    tipoSanguineo: 'AB+',
+    alergias: 'Ibuprofeno',
+    atendimentos: [],
+    createdAt: '2026-07-28T16:20:00.000Z'
+  },
+  {
+    id: 5,
+    nome: 'Lúcia Mendes',
+    cpf: '32165498712',
+    dataNascimento: '1982-09-16T00:00:00.000Z',
+    telefone: '(83) 99666-3344',
+    tipoSanguineo: 'A-',
+    alergias: 'Pólen',
+    atendimentos: [],
+    createdAt: '2026-08-01T08:40:00.000Z'
+  }
+];
+
+const atendimentos = [
+  {
+    id: 1,
+    paciente: 'Ana Beatriz Souza',
+    medico: 'Dra. Helena Costa',
+    hora: '08:30',
+    tipo: 'Consulta',
+    status: 'EM_ATENDIMENTO',
+    dataHora: '2026-08-02T08:30:00.000Z',
+    especialidade: 'Cardiologia',
+    convenio: 'Unimed',
+    observacao: 'Paciente segue com acompanhamento cardiológico e avaliação periódica.'
+  },
+  {
+    id: 2,
+    paciente: 'Carlos Eduardo Lima',
+    medico: 'Dr. Ricardo Farias',
+    hora: '09:15',
+    tipo: 'Retorno',
+    status: 'AGUARDANDO',
+    dataHora: '2026-08-02T09:15:00.000Z',
+    especialidade: 'Clínica Geral',
+    convenio: 'Bradesco Saúde',
+    observacao: 'Retorno pós-exame com necessidade de revisão laboratorial.'
+  },
+  {
+    id: 3,
+    paciente: 'Marina Torres',
+    medico: 'Dra. Yuska Maritan',
+    hora: '10:00',
+    tipo: 'Consulta',
+    status: 'CONCLUIDO',
+    dataHora: '2026-08-02T10:00:00.000Z',
+    especialidade: 'Pediatria',
+    convenio: 'Particular',
+    observacao: 'Consulta concluída com orientação de retorno em 30 dias.'
+  },
+  {
+    id: 4,
+    paciente: 'João Pedro Nunes',
+    medico: 'Dra. Helena Costa',
+    hora: '11:20',
+    tipo: 'Exame',
+    status: 'AGUARDANDO',
+    dataHora: '2026-08-02T11:20:00.000Z',
+    especialidade: 'Ortopedia',
+    convenio: 'Hapvida',
+    observacao: 'Exame solicitado para avaliação do quadro articular.'
+  },
+  {
+    id: 5,
+    paciente: 'Lúcia Mendes',
+    medico: 'Dr. Ricardo Farias',
+    hora: '14:10',
+    tipo: 'Consulta',
+    status: 'AGUARDANDO',
+    dataHora: '2026-08-02T14:10:00.000Z',
+    especialidade: 'Ginecologia',
+    convenio: 'Unimed',
+    observacao: 'Paciente aguardando avaliação para retorno clínico.'
+  }
+];
+
+const leitos = [
+  { id: 'UTI-01', numero: 'UTI-01', bloco: 'UTI Adulto', status: 'OCUPADO' },
+  { id: 'UTI-02', numero: 'UTI-02', bloco: 'UTI Adulto', status: 'OCUPADO' },
+  { id: 'UTI-03', numero: 'UTI-03', bloco: 'UTI Adulto', status: 'LIVRE' },
+  { id: 'UTI-04', numero: 'UTI-04', bloco: 'UTI Adulto', status: 'OCUPADO' },
+  { id: 'UTI-05', numero: 'UTI-05', bloco: 'UTI Adulto', status: 'HIGIENIZACAO' },
+  { id: 'ENF-F-01', numero: 'ENF-F-01', bloco: 'Enfermaria Feminina', status: 'OCUPADO' },
+  { id: 'ENF-F-02', numero: 'ENF-F-02', bloco: 'Enfermaria Feminina', status: 'LIVRE' },
+  { id: 'ENF-F-03', numero: 'ENF-F-03', bloco: 'Enfermaria Feminina', status: 'OCUPADO' },
+  { id: 'ENF-F-04', numero: 'ENF-F-04', bloco: 'Enfermaria Feminina', status: 'LIVRE' },
+  { id: 'ENF-F-05', numero: 'ENF-F-05', bloco: 'Enfermaria Feminina', status: 'OCUPADO' },
+  { id: 'ENF-M-01', numero: 'ENF-M-01', bloco: 'Enfermaria Masculina', status: 'LIVRE' },
+  { id: 'ENF-M-02', numero: 'ENF-M-02', bloco: 'Enfermaria Masculina', status: 'OCUPADO' },
+  { id: 'ENF-M-03', numero: 'ENF-M-03', bloco: 'Enfermaria Masculina', status: 'LIVRE' },
+  { id: 'ENF-M-04', numero: 'ENF-M-04', bloco: 'Enfermaria Masculina', status: 'HIGIENIZACAO' },
+  { id: 'ENF-M-05', numero: 'ENF-M-05', bloco: 'Enfermaria Masculina', status: 'OCUPADO' },
+  { id: 'PED-01', numero: 'PED-01', bloco: 'Pediatria', status: 'LIVRE' },
+  { id: 'PED-02', numero: 'PED-02', bloco: 'Pediatria', status: 'OCUPADO' },
+  { id: 'PED-03', numero: 'PED-03', bloco: 'Pediatria', status: 'LIVRE' },
+  { id: 'PED-04', numero: 'PED-04', bloco: 'Pediatria', status: 'OCUPADO' },
+  { id: 'PED-05', numero: 'PED-05', bloco: 'Pediatria', status: 'LIVRE' }
+];
+
+const configuracao = {
+  id: 'default',
+  nomeInstituicao: 'Dra. Yuska Maritan - Gestão Hospitalar',
+  email: 'contato@yuskamaritan.com.br',
+  telefone: '(83) 3333-0000'
+};
+
+const evolucoes = [
+  {
+    id: 1,
+    pacienteId: 1,
+    texto: 'Paciente avaliada clinicamente com melhora do quadro dispneico. Prescrição mantida e orientações sobre hidratação e repouso.',
+    responsavel: 'Dra. Helena Costa',
+    createdAt: '2026-08-01T09:30:00.000Z'
+  },
+  {
+    id: 2,
+    pacienteId: 1,
+    texto: 'Atendimento realizado com revisão de exames laboratoriais e ajuste na medicação anti-inflamatória. Paciente em acompanhamento ambulatorial.',
+    responsavel: 'Dr. Ricardo Farias',
+    createdAt: '2026-08-02T10:15:00.000Z'
+  },
+  {
+    id: 3,
+    pacienteId: 2,
+    texto: 'Paciente compareceu à consulta com queixa de dor lombar. Exame físico sem sinais de piora aguda; orientado a manter repouso relativo.',
+    responsavel: 'Dra. Yuska Maritan',
+    createdAt: '2026-08-01T14:00:00.000Z'
+  },
+  {
+    id: 4,
+    pacienteId: 3,
+    texto: 'Paciente recebeu alta provisória com orientação de retorno em 48 horas e prescrição de analgésico de uso pontual.',
+    responsavel: 'Dra. Yuska Maritan',
+    createdAt: '2026-08-01T16:00:00.000Z'
+  },
+  {
+    id: 5,
+    pacienteId: 3,
+    texto: 'Atendimento de retorno com revisão de sinais vitais e avaliação da resposta terapêutica. Paciente segue estável.',
+    responsavel: 'Dra. Helena Costa',
+    createdAt: '2026-08-02T08:45:00.000Z'
+  },
+  {
+    id: 6,
+    pacienteId: 4,
+    texto: 'Paciente mantido em observação após avaliação cardiológica. Exames encaminhados e monitorização recomendada.',
+    responsavel: 'Dr. Ricardo Farias',
+    createdAt: '2026-08-02T07:00:00.000Z'
+  },
+  {
+    id: 7,
+    pacienteId: 5,
+    texto: 'Consulta de rotina concluída com ajuste de tratamento e orientações sobre controle de pressão arterial.',
+    responsavel: 'Dra. Yuska Maritan',
+    createdAt: '2026-08-02T11:20:00.000Z'
+  },
+  {
+    id: 8,
+    pacienteId: 5,
+    texto: 'Paciente reportou melhora dos sintomas após início de terapêutica. Solicitação de retorno em 15 dias.',
+    responsavel: 'Dra. Helena Costa',
+    createdAt: '2026-08-02T15:10:00.000Z'
+  }
+];
+
+let proximoIdPaciente = pacientes.length + 1;
+let proximoIdAtendimento = atendimentos.length + 1;
+let proximoIdEvolucao = evolucoes.length + 1;
+
+module.exports = {
+  pacientes,
+  atendimentos,
+  leitos,
+  configuracao,
+  evolucoes,
+  proximoIdPaciente: () => proximoIdPaciente++,
+  proximoIdAtendimento: () => proximoIdAtendimento++,
+  proximoIdEvolucao: () => proximoIdEvolucao++
+};

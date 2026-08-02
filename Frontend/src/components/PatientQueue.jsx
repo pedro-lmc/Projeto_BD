@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { normalizarAtendimentos } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -46,7 +47,7 @@ export default function PatientQueue() {
           return;
         }
 
-        setPacientes(Array.isArray(dados) ? dados : []);
+        setPacientes(normalizarAtendimentos(dados));
       } catch (error) {
         if (!ativo) {
           return;
@@ -91,8 +92,8 @@ export default function PatientQueue() {
             {pacientes.map((p) => (
               <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                 <td className="py-3 font-medium text-slate-700">{formatarHorario(p.dataHora)}</td>
-                <td className="py-3 font-bold text-slate-800">{p.paciente?.nome || 'Paciente não informado'}</td>
-                <td className="py-3 text-slate-500">{p.queixaPrincipal || 'Consulta'}</td>
+                <td className="py-3 font-bold text-slate-800">{p.paciente}</td>
+                <td className="py-3 text-slate-500">{p.queixaPrincipal}</td>
                 <td className="py-3">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                     p.status === 'EM_ATENDIMENTO'

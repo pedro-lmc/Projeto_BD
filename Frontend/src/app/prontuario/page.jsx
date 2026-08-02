@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Stethoscope, AlertCircle, Plus, Search, X, User } from 'lucide-react';
+import { Stethoscope, AlertCircle, Plus, Search, X, User, RefreshCw } from 'lucide-react';
+import { normalizarEvolucoes, normalizarPacientes } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -26,11 +27,15 @@ export default function ProntuarioPage() {
   const [texto, setTexto] = useState('');
   const [responsavel, setResponsavel] = useState('Dra. Yuska Maritan');
   const [salvando, setSalvando] = useState(false);
+  const [atualizando, setAtualizando] = useState(false);
 
   const fetchPacientes = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/pacientes`);
-      if (res.ok) setPacientes(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setPacientes(normalizarPacientes(data));
+      }
     } catch (err) {
       console.error('Erro ao carregar pacientes:', err);
     }
@@ -39,9 +44,23 @@ export default function ProntuarioPage() {
   const fetchEvolucoes = async (pacienteId) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/pacientes/${pacienteId}/evolucoes`);
-      if (res.ok) setEvolucoes(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setEvolucoes(normalizarEvolucoes(data));
+      }
     } catch (err) {
       console.error('Erro ao carregar evoluções:', err);
+    }
+  };
+
+  const atualizarProntuario = async () => {
+    if (!selecionado) return;
+
+    setAtualizando(true);
+    try {
+      await fetchEvolucoes(selecionado.id);
+    } finally {
+      setAtualizando(false);
     }
   };
 
@@ -172,7 +191,18 @@ export default function ProntuarioPage() {
           </div>
 
           <div className="md:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-            <h3 className="font-bold text-slate-800 pb-2 border-b border-slate-100">Histórico de Evoluções</h3>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800">Histórico de Evoluções</h3>
+              <button
+                type="button"
+                onClick={atualizarProntuario}
+                disabled={atualizando || !selecionado}
+                className="flex items-center gap-2 text-sm font-semibold text-[#00A884] disabled:text-slate-400 disabled:cursor-not-allowed"
+              >
+                <RefreshCw size={15} className={atualizando ? 'animate-spin' : ''} />
+                {atualizando ? 'Atualizando...' : 'Atualizar prontuário'}
+              </button>
+            </div>
             {evolucoes.length > 0 ? (
               <div className="space-y-3">
                 {evolucoes.map((ev) => (

@@ -1,3 +1,9 @@
+// ============================================================================
+// Schema Prisma — Sistema de Gestão Hospitalar Dra. Yuska Maritan Brito
+// Alinhado ao modelo relacional do enunciado (Etapa 1 + Etapa 2)
+// PESSOA -> PACIENTE / PROFISSIONAL -> PRECEPTOR / RESIDENTE
+// ============================================================================
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -7,60 +13,206 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Paciente {
-  id               String        @id @default(uuid())
-  nome             String
-  cpf              String        @unique
-  dataNascimento   DateTime
-  tipoSanguineo    String?
-  alergias         String?
-  telefone         String
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  atendimentos     Atendimento[]
-  evolucoes        Evolucao[]
+// ----------------------------------------------------------------------------
+// PESSOA (superclasse) e especializações PACIENTE / PROFISSIONAL
+// ----------------------------------------------------------------------------
+
+model Pessoa {
+  id             Int      @id @default(autoincrement()) @map("id_pessoa")
+  nome           String   @db.VarChar(150)
+  cpf            String   @unique @db.Char(11)
+  dataNascimento DateTime @map("data_nascimento") @db.Date
+  isFlamengo     Boolean  @default(false) @map("is_flamengo")
+  telefone       String?  @db.VarChar(20)
+  endereco       String?  @db.VarChar(200)
+
+  paciente       Paciente?
+  profissional   Profissional?
+
+  @@map("pessoa")
 }
 
-model Medico {
-  id               String        @id @default(uuid())
-  nome             String
-  crm              String        @unique
-  especialidade    String
-  atendimentos     Atendimento[]
+model Paciente {
+  id             Int      @id @map("id_pessoa")
+  pessoa         Pessoa   @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  numConvenio    String?  @map("num_convenio") @db.VarChar(50)
+  alergias       String?
+  grupoSanguineo String?  @map("grupo_sanguineo") @db.VarChar(3)
+
+  atendimentos   Atendimento[]
+  internacoes    Internacao[]
+
+  @@map("paciente")
 }
+
+model Profissional {
+  id             Int      @id @map("id_pessoa")
+  pessoa         Pessoa   @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  crm            String   @unique @db.VarChar(30)
+  dataAdmissao   DateTime @map("data_admissao") @db.Date
+  especialidade  String   @db.VarChar(100)
+
+  preceptor      Preceptor?
+  residente      Residente?
+
+  @@map("profissional")
+}
+
+// Papel: um profissional ocupa PRECEPTOR ou RESIDENTE em um dado momento
+// (o histórico de mudança de papel fica fora do escopo lógico do PK simples;
+// se necessário, versionar via tabela HISTORICO_PAPEL — não exigido no enunciado)
+
+model Preceptor {
+  id            Int      @id @map("id_profissional")
+  profissional  Profissional @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  titulacao     String   @db.VarChar(50)
+
+  atendimentos  Atendimento[]
+  escalas       Escala[]
+
+  @@map("preceptor")
+}
+
+model Residente {
+  id            Int      @id @map("id_profissional")
+  profissional  Profissional @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  anoResidencia String   @map("ano_residencia") @db.VarChar(2) // R1, R2, R3
+
+  atendimentos  Atendimento[]
+  escalas       Escala[]
+
+  @@map("residente")
+}
+
+// ----------------------------------------------------------------------------
+// UNIDADE
+// ----------------------------------------------------------------------------
+
+model Unidade {
+  id               Int    @id @default(autoincrement()) @map("id_unidade")
+  nome             String @db.VarChar(100)
+  tipo             String @db.VarChar(50) // Enfermaria, UTI, Pronto-Socorro, Ambulatorio
+  capacidadeLeitos Int?   @map("capacidade_leitos")
+
+  escalas          Escala[]
+  internacoes      Internacao[]
+
+  @@map("unidade")
+}
+
+// ----------------------------------------------------------------------------
+// ATENDIMENTO / PROCEDIMENTO / PROCEDIMENTO_REALIZADO
+// ----------------------------------------------------------------------------
 
 model Atendimento {
-  id               String      @id @default(uuid())
-  pacienteId       String
-  medicoId         String
-  dataHora         DateTime    @default(now())
-  status           String      @default("AGUARDANDO")
-  queixaPrincipal  String?
-  diagnostico      String?
-  prescricao       String?
-  paciente         Paciente    @relation(fields: [pacienteId], references: [id])
-  medico           Medico      @relation(fields: [medicoId], references: [id])
+  id             Int      @id @default(autoincrement()) @map("id_atendimento")
+  dataHora       DateTime @map("data_hora")
+  duracaoMinutos Int      @map("duracao_minutos")
+
+  pacienteId     Int      @map("id_paciente")
+  paciente       Paciente @relation(fields: [pacienteId], references: [id])
+
+  residenteId    Int      @map("id_residente")
+  residente      Residente @relation(fields: [residenteId], references: [id])
+
+  preceptorId    Int      @map("id_preceptor")
+  preceptor      Preceptor @relation(fields: [preceptorId], references: [id])
+
+  procedimentosRealizados ProcedimentoRealizado[]
+
+  @@map("atendimento")
 }
 
-model Leito {
-  id               String      @id @default(uuid())
-  numero           String      @unique
-  bloco            String
-  status           String      @default("LIVRE")
+model Procedimento {
+  id                     Int     @id @default(autoincrement()) @map("id_procedimento")
+  codigo                 String  @unique @db.VarChar(20)
+  nome                   String  @db.VarChar(150)
+  tempoMedioMinutos      Int     @map("tempo_medio_minutos")
+  nivelRisco             String  @default("BAIXO") @map("nivel_risco") @db.VarChar(10) // BAIXO, MEDIO, ALTO
+  mediaTempoProcedimento Float?  @map("media_tempo_procedimento") // atualizado via trigger
+
+  realizados             ProcedimentoRealizado[]
+
+  @@map("procedimento")
 }
 
-model Configuracao {
-  id               String      @id @default("default")
-  nomeInstituicao  String
-  email            String?
-  updatedAt        DateTime    @updatedAt
+model ProcedimentoRealizado {
+  atendimentoId    Int          @map("id_atendimento")
+  atendimento      Atendimento  @relation(fields: [atendimentoId], references: [id], onDelete: Cascade)
+
+  procedimentoId   Int          @map("id_procedimento")
+  procedimento     Procedimento @relation(fields: [procedimentoId], references: [id])
+
+  quantidade       Int          @default(1)
+  tempoRealMinutos Int          @map("tempo_real_minutos")
+  observacao       String?
+  faturado         Boolean      @default(false) // usada para bloquear remoção (req. Etapa 1)
+
+  @@id([atendimentoId, procedimentoId])
+  @@map("procedimento_realizado")
 }
 
-model Evolucao {
-  id               String      @id @default(uuid())
-  pacienteId       String
-  texto            String
-  responsavel      String
-  createdAt        DateTime    @default(now())
-  paciente         Paciente    @relation(fields: [pacienteId], references: [id])
+// ----------------------------------------------------------------------------
+// ESCALA (plantões)
+// ----------------------------------------------------------------------------
+
+model Escala {
+  id          Int    @id @default(autoincrement()) @map("id_escala")
+
+  unidadeId   Int    @map("id_unidade")
+  unidade     Unidade @relation(fields: [unidadeId], references: [id])
+
+  diaSemana   String @map("dia_semana") @db.VarChar(10) // segunda..domingo
+  turno       String @db.VarChar(10) // manha, tarde, noite
+
+  residenteId Int    @map("id_residente")
+  residente   Residente @relation(fields: [residenteId], references: [id])
+
+  preceptorId Int    @map("id_preceptor")
+  preceptor   Preceptor @relation(fields: [preceptorId], references: [id])
+
+  // usado para lock otimista no cenário de concorrência da Etapa 2 (req. 6)
+  version     Int    @default(0)
+
+  @@unique([unidadeId, diaSemana, turno, residenteId], name: "uk_escala_unidade_dia_turno_residente")
+  @@map("escala")
+}
+
+// ----------------------------------------------------------------------------
+// INTERNACAO (necessária para vw_pacientes_internados)
+// ----------------------------------------------------------------------------
+
+model Internacao {
+  id              Int       @id @default(autoincrement()) @map("id_internacao")
+
+  pacienteId      Int       @map("id_paciente")
+  paciente        Paciente  @relation(fields: [pacienteId], references: [id])
+
+  unidadeId       Int?      @map("id_unidade")
+  unidade         Unidade?  @relation(fields: [unidadeId], references: [id])
+
+  dataHoraEntrada DateTime  @map("data_hora_entrada")
+  dataHoraSaida   DateTime? @map("data_hora_saida") // NULL = ainda internado
+
+  @@map("internacao")
+}
+
+// ----------------------------------------------------------------------------
+// AUDITORIA_ATENDIMENTO (populada via trigger trg_audita_atendimento)
+// ----------------------------------------------------------------------------
+
+model AuditoriaAtendimento {
+  id            Int      @id @default(autoincrement()) @map("id_auditoria")
+  atendimentoId Int?     @map("id_atendimento")
+  operacao      String   @db.VarChar(10) // INSERT, UPDATE, DELETE
+  usuario       String?  @db.VarChar(100)
+  dataHora      DateTime @default(now()) @map("data_hora")
+  dadosAntigos  Json?    @map("dados_antigos")
+  dadosNovos    Json?    @map("dados_novos")
+
+  @@map("auditoria_atendimento")
 }

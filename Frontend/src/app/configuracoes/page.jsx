@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Check } from 'lucide-react';
+import { normalizarConfiguracao } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -18,8 +19,9 @@ export default function ConfiguracoesPage() {
         const res = await fetch(`${API_BASE_URL}/api/configuracoes`);
         if (res.ok) {
           const data = await res.json();
-          setNomeInstituicao(data.nomeInstituicao || '');
-          setEmail(data.email || '');
+          const configuracao = normalizarConfiguracao(data);
+          setNomeInstituicao(configuracao.nomeInstituicao || '');
+          setEmail(configuracao.email || '');
         }
       } catch (err) {
         console.error('Erro ao carregar configurações:', err);

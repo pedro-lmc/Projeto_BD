@@ -1,119 +1,86 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { getStore, getNextId, saveStore } = require('../data/store');
 
-// 1. LISTAR ATENDIMENTOS
+const store = getStore();
+const atendimentos = store.atendimentos;
+let proximoId = getNextId(atendimentos);
+
+function formatarHora(dataHora) {
+  return new Date(dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function mapearAtendimento(item) {
+  return {
+    id: item.id,
+    hora: item.hora || formatarHora(item.dataHora),
+    paciente: item.paciente || 'Paciente sem nome',
+    medico: item.medico || 'Dra. Yuska Maritan',
+    tipo: item.tipo || 'Consulta',
+    status: item.status || 'AGUARDANDO',
+    dataHora: item.dataHora,
+    especialidade: item.especialidade || 'Cardiologia',
+    convenio: item.convenio || 'Unimed',
+    observacao: item.observacao || 'Consulta agendada para avaliação clínica.'
+  };
+}
+
 exports.listarAtendimentos = async (req, res) => {
-  try {
-    const atendimentos = await prisma.atendimento.findMany({
-      include: {
-        paciente: true,
-        medico: true
-      },
-      orderBy: { dataHora: 'desc' }
-    });
-
-    const formatados = atendimentos.map(a => ({
-      id: a.id,
-      hora: new Date(a.dataHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      paciente: a.paciente?.nome || 'Paciente sem nome',
-      medico: a.medico?.nome || 'Dra. Yuska Maritan',
-      tipo: 'Consulta',
-      status: a.status || 'AGUARDANDO'
-    }));
-
-    res.json(formatados);
-  } catch (error) {
-    console.error('Erro ao listar atendimentos:', error);
-    res.status(500).json({ error: 'Erro ao buscar atendimentos.' });
-  }
+  res.json(atendimentos.slice().sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora)).map(mapearAtendimento));
 };
 
-// 2. CRIAR NOVO ATENDIMENTO (SUPER SEGURO)
 exports.criarAtendimento = async (req, res) => {
-  const { paciente: nomePaciente, hora, status } = req.body;
+  const { paciente: nomePaciente, hora, status, especialidade, convenio, observacao } = req.body;
 
-  try {
-    // A. Busca ou cria o Paciente
-    let paciente = await prisma.paciente.findFirst({
-      where: { nome: nomePaciente }
-    });
-
-    if (!paciente) {
-      // Gera CPF e Telefone aleatórios válidos para não violar a constraint @unique
-      const cpfFake = `${Math.floor(100 + Math.random() * 899)}.${Math.floor(100 + Math.random() * 899)}.${Math.floor(100 + Math.random() * 899)}-${Math.floor(10 + Math.random() * 89)}`;
-      
-      paciente = await prisma.paciente.create({
-        data: {
-          nome: nomePaciente,
-          cpf: cpfFake,
-          dataNascimento: new Date('1990-01-01T00:00:00.000Z'),
-          telefone: '(83) 98888-7777'
-        }
-      });
-    }
-
-    // B. Busca ou cria o Médico Padrão
-    let medico = await prisma.medico.findFirst();
-
-    if (!medico) {
-      medico = await prisma.medico.create({
-        data: {
-          nome: 'Dra. Yuska Maritan',
-          crm: 'CRM/PB 99999',
-          especialidade: 'Clínica Geral'
-        }
-      });
-    }
-
-    // C. Ajusta a Hora para um objeto Date válido do Prisma
-    let dataAtendimento = new Date();
-    if (hora && hora.includes(':')) {
-      const [horas, minutos] = hora.split(':');
-      dataAtendimento.setHours(parseInt(horas), parseInt(minutos), 0, 0);
-    }
-
-    // D. Salva no Banco
-    const novoAtendimento = await prisma.atendimento.create({
-      data: {
-        pacienteId: paciente.id,
-        medicoId: medico.id,
-        dataHora: dataAtendimento,
-        status: status || 'AGUARDANDO'
-      },
-      include: {
-        paciente: true,
-        medico: true
-      }
-    });
-
-    res.status(201).json({
-      id: novoAtendimento.id,
-      hora: hora || '10:00',
-      paciente: novoAtendimento.paciente.nome,
-      medico: novoAtendimento.medico.nome,
-      tipo: 'Consulta',
-      status: novoAtendimento.status
-    });
-
-  } catch (error) {
-    console.error('ERRO DETALHADO NO BACKEND:', error);
-    res.status(500).json({ error: 'Erro ao criar no banco.', detalhes: error.message });
+  if (!nomePaciente || !hora) {
+    return res.status(400).json({ error: 'Paciente e hora são obrigatórios.' });
   }
+
+  const dataAtendimento = new Date();
+  if (hora.includes(':')) {
+    const [horas, minutos] = hora.split(':');
+    dataAtendimento.setHours(parseInt(horas, 10), parseInt(minutos, 10), 0, 0);
+  }
+
+  const novoAtendimento = {
+    id: proximoId++,
+    paciente: String(nomePaciente).trim(),
+    medico: 'Dra. Yuska Maritan',
+    hora,
+    tipo: 'Consulta',
+    status: status || 'AGUARDANDO',
+    dataHora: dataAtendimento.toISOString(),
+    especialidade: especialidade || 'Cardiologia',
+    convenio: convenio || 'Unimed',
+    observacao: observacao || 'Consulta agendada para avaliação clínica.'
+  };
+
+  atendimentos.push(novoAtendimento);
+  saveStore();
+  res.status(201).json(mapearAtendimento(novoAtendimento));
 };
 
-// 3. ATUALIZAR STATUS
 exports.atualizarStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-  try {
-    const atualizado = await prisma.atendimento.update({
-      where: { id: id },
-      data: { status }
-    });
-    res.json(atualizado);
-  } catch (error) {
-    console.error('Erro ao atualizar status:', error);
-    res.status(500).json({ error: 'Erro ao atualizar status.' });
+  const atendimento = atendimentos.find((item) => item.id === Number(id));
+  if (!atendimento) {
+    return res.status(404).json({ error: 'Atendimento não encontrado.' });
   }
+
+  atendimento.status = status;
+  saveStore();
+  res.json(mapearAtendimento(atendimento));
+};
+
+exports.excluirAtendimento = async (req, res) => {
+  const { id } = req.params;
+  const index = atendimentos.findIndex((item) => item.id === Number(id));
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Atendimento não encontrado.' });
+  }
+
+  atendimentos.splice(index, 1);
+  saveStore();
+  res.json({ success: true });
 };

@@ -1,5 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { getStore, saveStore } = require('../data/store');
+
+const store = getStore();
+const pacientes = store.pacientes;
+let proximoId = pacientes.length + 1;
 
 function normalizarAlergias(alergias) {
   if (Array.isArray(alergias)) {
@@ -17,21 +20,22 @@ function normalizarAlergias(alergias) {
   return null;
 }
 
+function mapearPaciente(item) {
+  return {
+    id: item.id,
+    nome: item.nome,
+    cpf: item.cpf,
+    dataNascimento: item.dataNascimento,
+    telefone: item.telefone,
+    tipoSanguineo: item.tipoSanguineo || null,
+    alergias: item.alergias || '',
+    atendimentos: item.atendimentos || [],
+    createdAt: item.createdAt
+  };
+}
+
 exports.listarPacientes = async (req, res) => {
-  try {
-    const pacientes = await prisma.paciente.findMany({
-      orderBy: { nome: 'asc' },
-      include: {
-        atendimentos: {
-          orderBy: { dataHora: 'desc' },
-          take: 1
-        }
-      }
-    });
-    res.json(pacientes);
-  } catch (error) {
-    res.status(500).json({ error: 'Erro ao buscar pacientes.' });
-  }
+  res.json(pacientes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(mapearPaciente));
 };
 
 exports.criarPaciente = async (req, res) => {
@@ -50,19 +54,23 @@ exports.criarPaciente = async (req, res) => {
       return res.status(400).json({ error: 'dataNascimento inválida.' });
     }
 
-    const novoPaciente = await prisma.paciente.create({
-      data: {
-        nome: String(nome).trim(),
-        cpf: String(cpf).trim(),
-        dataNascimento: nascimento,
-        tipoSanguineo: tipoSanguineo ? String(tipoSanguineo).trim() : null,
-        alergias: normalizarAlergias(alergias),
-        telefone: String(telefone).trim()
-      }
-    });
+    const novoPaciente = {
+      id: proximoId++,
+      nome: String(nome).trim(),
+      cpf: String(cpf).trim(),
+      dataNascimento: nascimento.toISOString(),
+      tipoSanguineo: tipoSanguineo ? String(tipoSanguineo).trim() : null,
+      alergias: normalizarAlergias(alergias),
+      telefone: String(telefone).trim(),
+      atendimentos: [],
+      createdAt: new Date().toISOString()
+    };
 
-    res.status(201).json(novoPaciente);
+    pacientes.push(novoPaciente);
+    saveStore();
+    res.status(201).json(mapearPaciente(novoPaciente));
   } catch (error) {
+    console.error('Erro ao cadastrar paciente:', error);
     res.status(400).json({ error: 'Erro ao cadastrar paciente.' });
   }
 };

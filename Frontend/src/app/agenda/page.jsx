@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle2, UserCheck, Plus, Search, X } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, UserCheck, Plus, Search, X, Trash2 } from 'lucide-react';
+import { normalizarAtendimentos } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -10,21 +11,20 @@ export default function AgendaPage() {
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [atendimentoSelecionado, setAtendimentoSelecionado] = useState(null);
 
-  // Form de novo agendamento
   const [paciente, setPaciente] = useState('');
   const [medico, setMedico] = useState('Dra. Yuska Maritan');
   const [especialidade, setEspecialidade] = useState('Cardiologia');
   const [convenio, setConvenio] = useState('Unimed');
   const [hora, setHora] = useState('');
 
-  // 1. CARREGAR AGENDAMENTOS DO BACKEND
   const fetchAgendamentos = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/atendimentos`);
       if (res.ok) {
         const data = await res.json();
-        setAgendamentos(data);
+        setAgendamentos(normalizarAtendimentos(data));
       }
     } catch (err) {
       console.error('Erro ao carregar agendamentos:', err);
@@ -35,7 +35,6 @@ export default function AgendaPage() {
     fetchAgendamentos();
   }, []);
 
-  // 2. SALVAR NOVO AGENDAMENTO NO BANCO
   const handleNovoAgendamento = async (e) => {
     e.preventDefault();
     if (!paciente || !hora) return;
@@ -48,7 +47,11 @@ export default function AgendaPage() {
         body: JSON.stringify({
           paciente,
           hora,
-          status: 'AGUARDANDO'
+          status: 'AGUARDANDO',
+          medico,
+          especialidade,
+          convenio,
+          observacao: 'Consulta agendada pelo módulo de agenda.'
         })
       });
 
@@ -70,6 +73,25 @@ export default function AgendaPage() {
       alert('Não foi possível conectar ao servidor. Verifique se o Backend está rodando.');
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const handleExcluirAgendamento = async (id) => {
+    if (!window.confirm('Deseja remover este agendamento da agenda?')) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/atendimentos/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setAgendamentos((prev) => prev.filter((item) => item.id !== id));
+        if (atendimentoSelecionado?.id === id) {
+          setAtendimentoSelecionado(null);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao excluir agendamento:', err);
     }
   };
 
@@ -144,17 +166,35 @@ export default function AgendaPage() {
               agendamentosFiltrados.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 pl-3 font-semibold text-slate-700">{item.hora}</td>
-                  <td className="py-3 font-bold text-slate-800">{item.paciente}</td>
+                  <td className="py-3 font-bold text-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setAtendimentoSelecionado(item)}
+                      className="text-left hover:text-[#00A884] hover:underline underline-offset-2"
+                    >
+                      {item.paciente}
+                    </button>
+                  </td>
                   <td className="py-3 text-slate-600">{item.medico}</td>
                   <td className="py-3">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      item.status === 'EM_ATENDIMENTO' ? 'bg-amber-100/80 text-amber-800' :
-                      item.status === 'CONCLUIDO' ? 'bg-emerald-100/80 text-emerald-800' :
-                      item.status === 'CANCELADO' ? 'bg-red-100/80 text-red-800' :
-                      'bg-blue-100/80 text-blue-800'
-                    }`}>
-                      {item.status}
-                    </span>
+                    <div className="flex items-center justify-start gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        item.status === 'EM_ATENDIMENTO' ? 'bg-amber-100/80 text-amber-800' :
+                        item.status === 'CONCLUIDO' ? 'bg-emerald-100/80 text-emerald-800' :
+                        item.status === 'CANCELADO' ? 'bg-red-100/80 text-red-800' :
+                        'bg-blue-100/80 text-blue-800'
+                      }`}>
+                        {item.status}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirAgendamento(item.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        title="Excluir agendamento"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -168,6 +208,49 @@ export default function AgendaPage() {
           </tbody>
         </table>
       </div>
+
+      {atendimentoSelecionado && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 border border-slate-100">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800">Detalhes do Agendamento</h3>
+                <p className="text-sm text-slate-500">{atendimentoSelecionado.paciente}</p>
+              </div>
+              <button onClick={() => setAtendimentoSelecionado(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Horário</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.hora}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Status</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.status}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Médico</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.medico}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Especialidade</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.especialidade || 'Cardiologia'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Convênio</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.convenio || 'Unimed'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3 md:col-span-2">
+                <p className="text-xs font-semibold uppercase text-slate-400">Observação</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.observacao || 'Consulta agendada pelo módulo de agenda.'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL NOVO AGENDAMENTO */}
       {isModalOpen && (

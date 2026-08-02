@@ -38,7 +38,7 @@ export default function FinanceiroPage() {
     <div className="p-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Painel Financeiro</h1>
-        <p className="text-sm text-slate-500">Resumo de receitas, convênios e custos operacionais (valores ilustrativos)</p>
+        <p className="text-sm text-slate-500">Resumo de receitas, convênios e custos operacionais</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

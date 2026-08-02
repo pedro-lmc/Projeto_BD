@@ -1,0 +1,7 @@
+{
+  "watch": ["src"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": ["node_modules/**", "prisma/migrations/**", "*.log"],
+  "delay": 2000,
+  "legacyWatch": true
+}

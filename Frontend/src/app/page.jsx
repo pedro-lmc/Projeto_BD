@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import {
   Plus, X, Calendar, Stethoscope, Clock, UserCheck,
-  Search, Users, Bed, DollarSign, ArrowRight
+  Search, Users, Bed, DollarSign, ArrowRight, Trash2
 } from 'lucide-react';
+import { normalizarAtendimentos, normalizarPacientes } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Mesmo valor ilustrativo usado na aba Financeiro, para manter os números consistentes
 const RECEITA_MES_ATUAL = 142800;
 
 export default function Dashboard() {
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [leitos, setLeitos] = useState([]);
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [atendimentoSelecionado, setAtendimentoSelecionado] = useState(null);
 
   const [paciente, setPaciente] = useState('');
   const [tipo, setTipo] = useState('Consulta');
@@ -25,7 +26,10 @@ export default function Dashboard() {
   const fetchAtendimentos = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/atendimentos`);
-      if (res.ok) setAtendimentos(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setAtendimentos(normalizarAtendimentos(data));
+      }
     } catch (err) {
       console.error('Erro ao carregar atendimentos:', err);
     }
@@ -34,7 +38,10 @@ export default function Dashboard() {
   const fetchPacientes = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/pacientes`);
-      if (res.ok) setPacientes(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setPacientes(normalizarPacientes(data));
+      }
     } catch (err) {
       console.error('Erro ao carregar pacientes:', err);
     }
@@ -89,12 +96,31 @@ export default function Dashboard() {
       });
 
       if (res.ok) {
-        setAtendimentos(atendimentos.map((item) =>
+        setAtendimentos((prev) => prev.map((item) =>
           item.id === id ? { ...item, status: novoStatus } : item
         ));
       }
     } catch (err) {
       console.error('Erro ao alterar status:', err);
+    }
+  };
+
+  const handleExcluirAtendimento = async (id) => {
+    if (!window.confirm('Deseja remover este atendimento da fila?')) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/atendimentos/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setAtendimentos((prev) => prev.filter((item) => item.id !== id));
+        if (atendimentoSelecionado?.id === id) {
+          setAtendimentoSelecionado(null);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao excluir atendimento:', err);
     }
   };
 
@@ -109,7 +135,7 @@ export default function Dashboard() {
   const ocupacaoPercentual = totalLeitos > 0 ? Math.round((leitosOcupados / totalLeitos) * 100) : 0;
 
   const ultimosPacientes = [...pacientes]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
     .slice(0, 4);
 
   return (
@@ -120,12 +146,6 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-800">Painel Geral</h1>
           <p className="text-sm text-slate-500">Acompanhamento em tempo real do hospital</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-[#00A884] hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-all cursor-pointer"
-        >
-          <Plus size={18} /> Novo Atendimento
-        </button>
       </div>
 
       {/* Cards de Métricas */}
@@ -197,7 +217,15 @@ export default function Dashboard() {
               atendimentosFiltrados.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 pl-3 font-semibold text-slate-700">{item.hora}</td>
-                  <td className="py-3 font-bold text-slate-800">{item.paciente}</td>
+                  <td className="py-3 font-bold text-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setAtendimentoSelecionado(item)}
+                      className="text-left hover:text-[#00A884] hover:underline underline-offset-2"
+                    >
+                      {item.paciente}
+                    </button>
+                  </td>
                   <td className="py-3 text-slate-500">{item.medico}</td>
                   <td className="py-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -210,16 +238,26 @@ export default function Dashboard() {
                     </span>
                   </td>
                   <td className="py-3 text-right pr-3">
-                    <select
-                      value={item.status}
-                      onChange={(e) => handleMudarStatus(item.id, e.target.value)}
-                      className="text-xs bg-slate-100 font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer focus:ring-1 focus:ring-teal-500"
-                    >
-                      <option value="AGUARDANDO">AGUARDANDO</option>
-                      <option value="EM_ATENDIMENTO">EM ATENDIMENTO</option>
-                      <option value="CONCLUIDO">CONCLUIDO</option>
-                      <option value="CANCELADO">CANCELADO</option>
-                    </select>
+                    <div className="flex items-center justify-end gap-2">
+                      <select
+                        value={item.status}
+                        onChange={(e) => handleMudarStatus(item.id, e.target.value)}
+                        className="text-xs bg-slate-100 font-semibold border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer focus:ring-1 focus:ring-teal-500"
+                      >
+                        <option value="AGUARDANDO">AGUARDANDO</option>
+                        <option value="EM_ATENDIMENTO">EM ATENDIMENTO</option>
+                        <option value="CONCLUIDO">CONCLUIDO</option>
+                        <option value="CANCELADO">CANCELADO</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirAtendimento(item.id)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        title="Excluir atendimento"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -234,10 +272,8 @@ export default function Dashboard() {
         </table>
       </div>
 
-      {/* Resumo das demais áreas do sistema */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Resumo de Leitos */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Bed size={16} /> Leitos</h3>
             <a href="/leitos" className="text-xs font-semibold text-[#00A884] flex items-center gap-1 hover:underline">
@@ -265,7 +301,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Últimos Pacientes */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={16} /> Últimos Pacientes</h3>
@@ -292,7 +327,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Resumo Financeiro */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-800 flex items-center gap-2"><DollarSign size={16} /> Financeiro</h3>
@@ -306,11 +340,53 @@ export default function Dashboard() {
               {RECEITA_MES_ATUAL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </p>
           </div>
-          <p className="text-xs text-slate-400">Valores ilustrativos com base no fluxo médio mensal do hospital.</p>
+          <p className="text-xs text-slate-400">Resumo geral do fluxo mensal do hospital.</p>
         </div>
       </div>
 
-      {/* MODAL NOVO ATENDIMENTO */}
+      {atendimentoSelecionado && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 border border-slate-100">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-800">Detalhes do Atendimento</h3>
+                <p className="text-sm text-slate-500">{atendimentoSelecionado.paciente}</p>
+              </div>
+              <button onClick={() => setAtendimentoSelecionado(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Horário</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.hora}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Status</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.status}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Médico</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.medico}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Especialidade</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.especialidade || 'Cardiologia'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase text-slate-400">Convênio</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.convenio || 'Unimed'}</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3 md:col-span-2">
+                <p className="text-xs font-semibold uppercase text-slate-400">Observação</p>
+                <p className="font-semibold text-slate-700 mt-1">{atendimentoSelecionado.observacao || 'Consulta agendada para avaliação clínica.'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 border border-slate-100">

@@ -1,13 +1,15 @@
 {
   "name": "hospital-backend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "orm:consultas": "node src/orm/consultasAvancadas.js",
+    "orm:concorrencia": "node src/orm/concorrenciaDemo.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

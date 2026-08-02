@@ -1,19 +1,16 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { getStore, saveStore } = require('../data/store');
+
+const store = getStore();
+const evolucoesEmMemoria = store.evolucoes;
 
 exports.listarEvolucoesPorPaciente = async (req, res) => {
   const { pacienteId } = req.params;
 
-  try {
-    const evolucoes = await prisma.evolucao.findMany({
-      where: { pacienteId },
-      orderBy: { createdAt: 'desc' }
-    });
-    res.json(evolucoes);
-  } catch (error) {
-    console.error('Erro ao listar evoluções:', error);
-    res.status(500).json({ error: 'Erro ao buscar evoluções.' });
-  }
+  const evolucoes = evolucoesEmMemoria
+    .filter((item) => String(item.pacienteId) === String(pacienteId))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  res.json(evolucoes);
 };
 
 exports.criarEvolucao = async (req, res) => {
@@ -23,17 +20,15 @@ exports.criarEvolucao = async (req, res) => {
     return res.status(400).json({ error: 'pacienteId e texto são obrigatórios.' });
   }
 
-  try {
-    const evolucao = await prisma.evolucao.create({
-      data: {
-        pacienteId,
-        texto: String(texto).trim(),
-        responsavel: responsavel && String(responsavel).trim() ? String(responsavel).trim() : 'Dra. Yuska Maritan'
-      }
-    });
-    res.status(201).json(evolucao);
-  } catch (error) {
-    console.error('Erro ao criar evolução:', error);
-    res.status(500).json({ error: 'Erro ao salvar evolução.' });
-  }
+  const evolucao = {
+    id: Date.now(),
+    pacienteId: Number(pacienteId),
+    texto: String(texto).trim(),
+    responsavel: responsavel && String(responsavel).trim() ? String(responsavel).trim() : 'Dra. Yuska Maritan',
+    createdAt: new Date().toISOString()
+  };
+
+  evolucoesEmMemoria.push(evolucao);
+  saveStore();
+  res.status(201).json(evolucao);
 };
