@@ -1,23 +1,28 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, UserPlus, Search, X } from 'lucide-react';
+import { Users, UserPlus, Search, X, Pencil, Trash2 } from 'lucide-react';
 import { normalizarPacientes } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+const FORM_VAZIO = {
+  nome: '',
+  cpf: '',
+  dataNascimento: '',
+  telefone: '',
+  tipoSanguineo: '',
+  alergias: ''
+};
 
 export default function PacientesPage() {
   const [pacientes, setPacientes] = useState([]);
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [pacienteEmEdicao, setPacienteEmEdicao] = useState(null); // null = criando novo
 
-  const [nome, setNome] = useState('');
-  const [cpf, setCpf] = useState('');
-  const [dataNascimento, setDataNascimento] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [tipoSanguineo, setTipoSanguineo] = useState('');
-  const [alergias, setAlergias] = useState('');
+  const [form, setForm] = useState(FORM_VAZIO);
 
   const fetchPacientes = async () => {
     try {
@@ -36,24 +41,43 @@ export default function PacientesPage() {
   }, []);
 
   const resetForm = () => {
-    setNome('');
-    setCpf('');
-    setDataNascimento('');
-    setTelefone('');
-    setTipoSanguineo('');
-    setAlergias('');
+    setForm(FORM_VAZIO);
+    setPacienteEmEdicao(null);
   };
 
-  const handleNovoPaciente = async (e) => {
+  const abrirModalNovo = () => {
+    resetForm();
+    setIsModalOpen(true);
+  };
+
+  const abrirModalEdicao = (paciente) => {
+    setPacienteEmEdicao(paciente);
+    setForm({
+      nome: paciente.nome || '',
+      cpf: paciente.cpf || '',
+      dataNascimento: paciente.dataNascimento ? String(paciente.dataNascimento).slice(0, 10) : '',
+      telefone: paciente.telefone || '',
+      tipoSanguineo: paciente.tipoSanguineo || '',
+      alergias: paciente.alergias || ''
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSalvarPaciente = async (e) => {
     e.preventDefault();
-    if (!nome || !cpf || !dataNascimento || !telefone) return;
+    if (!form.nome || !form.cpf || !form.dataNascimento || !form.telefone) return;
+
+    const editando = Boolean(pacienteEmEdicao);
+    const url = editando
+      ? `${API_BASE_URL}/api/pacientes/${pacienteEmEdicao.id}`
+      : `${API_BASE_URL}/api/pacientes`;
 
     setSalvando(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/pacientes`, {
-        method: 'POST',
+      const res = await fetch(url, {
+        method: editando ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome, cpf, dataNascimento, telefone, tipoSanguineo, alergias })
+        body: JSON.stringify(form)
       });
 
       if (res.ok) {
@@ -69,6 +93,28 @@ export default function PacientesPage() {
       alert('Não foi possível conectar ao servidor. Verifique se o Backend está rodando.');
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const handleExcluirPaciente = async (paciente) => {
+    if (!window.confirm(
+      `Deseja remover o paciente "${paciente.nome}"?\n\nEsta ação também apaga TODOS os atendimentos, internações e evoluções vinculados a ele. Não pode ser desfeita.`
+    )) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/pacientes/${paciente.id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setPacientes((prev) => prev.filter((p) => p.id !== paciente.id));
+      } else {
+        const erro = await res.json().catch(() => ({}));
+        alert(erro.error || 'Erro ao excluir paciente.');
+      }
+    } catch (err) {
+      console.error('Erro ao excluir paciente:', err);
+      alert('Não foi possível conectar ao servidor. Verifique se o Backend está rodando.');
     }
   };
 
@@ -90,7 +136,7 @@ export default function PacientesPage() {
           <p className="text-sm text-slate-500">Listagem geral e busca cadastral do hospital</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={abrirModalNovo}
           className="bg-[#00A884] hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 shadow-sm cursor-pointer"
         >
           <UserPlus size={18} /> Novo Paciente
@@ -118,6 +164,7 @@ export default function PacientesPage() {
               <th className="pb-2">Tipo Sanguíneo</th>
               <th className="pb-2">Última Visita</th>
               <th className="pb-2">Cadastrado em</th>
+              <th className="pb-2 text-right pr-3">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -136,11 +183,31 @@ export default function PacientesPage() {
                     {p.atendimentos?.[0] ? formatarData(p.atendimentos[0].dataHora) : 'Sem atendimentos'}
                   </td>
                   <td className="py-3 text-slate-400">{formatarData(p.createdAt)}</td>
+                  <td className="py-3 pr-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => abrirModalEdicao(p)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        title="Editar paciente"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleExcluirPaciente(p)}
+                        className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        title="Excluir paciente"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="py-6 text-center text-xs text-slate-400 font-medium">
+                <td colSpan="7" className="py-6 text-center text-xs text-slate-400 font-medium">
                   Nenhum paciente cadastrado ainda.
                 </td>
               </tr>
@@ -153,20 +220,22 @@ export default function PacientesPage() {
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4 border border-slate-100">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2"><Users size={18} /> Novo Paciente</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <Users size={18} /> {pacienteEmEdicao ? 'Editar Paciente' : 'Novo Paciente'}
+              </h3>
+              <button onClick={() => { setIsModalOpen(false); resetForm(); }} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleNovoPaciente} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+            <form onSubmit={handleSalvarPaciente} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Nome Completo</label>
                 <input
                   type="text"
                   required
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
+                  value={form.nome}
+                  onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
                   placeholder="Ex: Ana Maria Silva"
                   className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                 />
@@ -178,8 +247,8 @@ export default function PacientesPage() {
                   <input
                     type="text"
                     required
-                    value={cpf}
-                    onChange={(e) => setCpf(e.target.value)}
+                    value={form.cpf}
+                    onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))}
                     placeholder="000.000.000-00"
                     className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                   />
@@ -189,8 +258,8 @@ export default function PacientesPage() {
                   <input
                     type="date"
                     required
-                    value={dataNascimento}
-                    onChange={(e) => setDataNascimento(e.target.value)}
+                    value={form.dataNascimento}
+                    onChange={(e) => setForm((f) => ({ ...f, dataNascimento: e.target.value }))}
                     className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                   />
                 </div>
@@ -202,8 +271,8 @@ export default function PacientesPage() {
                   <input
                     type="text"
                     required
-                    value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
+                    value={form.telefone}
+                    onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
                     placeholder="(83) 90000-0000"
                     className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                   />
@@ -211,8 +280,8 @@ export default function PacientesPage() {
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo Sanguíneo</label>
                   <select
-                    value={tipoSanguineo}
-                    onChange={(e) => setTipoSanguineo(e.target.value)}
+                    value={form.tipoSanguineo}
+                    onChange={(e) => setForm((f) => ({ ...f, tipoSanguineo: e.target.value }))}
                     className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                   >
                     <option value="">Não informado</option>
@@ -228,8 +297,8 @@ export default function PacientesPage() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Alergias (separadas por vírgula)</label>
                 <input
                   type="text"
-                  value={alergias}
-                  onChange={(e) => setAlergias(e.target.value)}
+                  value={form.alergias}
+                  onChange={(e) => setForm((f) => ({ ...f, alergias: e.target.value }))}
                   placeholder="Ex: Dipirona, Penicilina"
                   className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                 />
@@ -238,7 +307,7 @@ export default function PacientesPage() {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); resetForm(); }}
                   className="w-1/2 border border-slate-200 text-slate-600 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 cursor-pointer"
                 >
                   Cancelar
@@ -248,7 +317,7 @@ export default function PacientesPage() {
                   disabled={salvando}
                   className="w-1/2 bg-[#00A884] hover:bg-teal-700 text-white py-2.5 rounded-lg text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {salvando ? 'Salvando...' : 'Salvar'}
+                  {salvando ? 'Salvando...' : pacienteEmEdicao ? 'Salvar alterações' : 'Salvar'}
                 </button>
               </div>
             </form>

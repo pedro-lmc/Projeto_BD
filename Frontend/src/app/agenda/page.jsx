@@ -2,18 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle2, UserCheck, Plus, Search, X, Trash2 } from 'lucide-react';
-import { normalizarAtendimentos } from '@/utils/apiAdapters';
+import { normalizarAtendimentos, normalizarPacientes } from '@/utils/apiAdapters';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function AgendaPage() {
   const [agendamentos, setAgendamentos] = useState([]);
+  const [pacientesCadastrados, setPacientesCadastrados] = useState([]);
   const [busca, setBusca] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [atendimentoSelecionado, setAtendimentoSelecionado] = useState(null);
 
-  const [paciente, setPaciente] = useState('');
+  const [pacienteId, setPacienteId] = useState('');
   const [medico, setMedico] = useState('Dra. Yuska Maritan');
   const [especialidade, setEspecialidade] = useState('Cardiologia');
   const [convenio, setConvenio] = useState('Unimed');
@@ -31,13 +32,39 @@ export default function AgendaPage() {
     }
   };
 
+  const fetchPacientesCadastrados = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/pacientes`);
+      if (res.ok) {
+        const data = await res.json();
+        setPacientesCadastrados(normalizarPacientes(data));
+      }
+    } catch (err) {
+      console.error('Erro ao carregar pacientes:', err);
+    }
+  };
+
   useEffect(() => {
     fetchAgendamentos();
+    fetchPacientesCadastrados();
   }, []);
+
+  const resetForm = () => {
+    setPacienteId('');
+    setHora('');
+    setEspecialidade('Cardiologia');
+    setConvenio('Unimed');
+    setMedico('Dra. Yuska Maritan');
+  };
+
+  const handleAbrirModal = () => {
+    fetchPacientesCadastrados(); // garante a lista mais recente ao abrir o modal
+    setIsModalOpen(true);
+  };
 
   const handleNovoAgendamento = async (e) => {
     e.preventDefault();
-    if (!paciente || !hora) return;
+    if (!pacienteId || !hora) return;
 
     setSalvando(true);
     try {
@@ -45,7 +72,7 @@ export default function AgendaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paciente,
+          pacienteId: Number(pacienteId),
           hora,
           status: 'AGUARDANDO',
           medico,
@@ -57,16 +84,11 @@ export default function AgendaPage() {
 
       if (res.ok) {
         await fetchAgendamentos(); // Recarrega os dados atualizados do banco
-
-        // Reseta o formulário
-        setPaciente('');
-        setHora('');
-        setEspecialidade('Cardiologia');
-        setConvenio('Unimed');
-        setMedico('Dra. Yuska Maritan');
+        resetForm();
         setIsModalOpen(false);
       } else {
-        alert('Erro ao salvar no servidor. Verifique o terminal do Backend.');
+        const erro = await res.json().catch(() => ({}));
+        alert(erro.error || 'Erro ao salvar no servidor. Verifique o terminal do Backend.');
       }
     } catch (err) {
       console.error('Erro ao salvar agendamento:', err);
@@ -109,7 +131,7 @@ export default function AgendaPage() {
           <p className="text-sm text-slate-500">Gestão diária de horários, retornos e consultas</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleAbrirModal}
           className="bg-[#00A884] hover:bg-teal-700 text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-all cursor-pointer"
         >
           <Plus size={18} /> Agendar Consulta
@@ -263,92 +285,103 @@ export default function AgendaPage() {
               </button>
             </div>
 
-            <form onSubmit={handleNovoAgendamento} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Nome do Paciente</label>
-                <input
-                  type="text"
-                  required
-                  value={paciente}
-                  onChange={(e) => setPaciente(e.target.value)}
-                  placeholder="Ex: Beatriz Vasconcelos"
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
-                />
+            {pacientesCadastrados.length === 0 ? (
+              <div className="text-sm text-slate-500 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                Nenhum paciente cadastrado ainda. Cadastre um paciente na aba <strong>Pacientes</strong> antes de agendar uma consulta.
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
+            ) : (
+              <form onSubmit={handleNovoAgendamento} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Horário</label>
-                  <input
-                    type="time"
-                    required
-                    value={hora}
-                    onChange={(e) => setHora(e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Convênio</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Paciente</label>
                   <select
-                    value={convenio}
-                    onChange={(e) => setConvenio(e.target.value)}
+                    required
+                    value={pacienteId}
+                    onChange={(e) => setPacienteId(e.target.value)}
                     className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
                   >
-                    <option>Unimed</option>
-                    <option>Bradesco Saúde</option>
-                    <option>Hapvida</option>
-                    <option>Particular</option>
+                    <option value="" disabled>Selecione um paciente cadastrado</option>
+                    {pacientesCadastrados.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}{p.cpf ? ` — ${p.cpf}` : ''}
+                      </option>
+                    ))}
                   </select>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Médico Responsável</label>
-                <select
-                  value={medico}
-                  onChange={(e) => setMedico(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
-                >
-                  <option>Dra. Yuska Maritan</option>
-                  <option>Dr. Roberto Alves</option>
-                  <option>Dr. Fernando Costa</option>
-                  <option>Dra. Camila Duarte</option>
-                </select>
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Horário</label>
+                    <input
+                      type="time"
+                      required
+                      value={hora}
+                      onChange={(e) => setHora(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Especialidade</label>
-                <select
-                  value={especialidade}
-                  onChange={(e) => setEspecialidade(e.target.value)}
-                  className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
-                >
-                  <option>Cardiologia</option>
-                  <option>Clínica Geral</option>
-                  <option>Pediatria</option>
-                  <option>Ortopedia</option>
-                  <option>Ginecologia</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Convênio</label>
+                    <select
+                      value={convenio}
+                      onChange={(e) => setConvenio(e.target.value)}
+                      className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
+                    >
+                      <option>Unimed</option>
+                      <option>Bradesco Saúde</option>
+                      <option>Hapvida</option>
+                      <option>Particular</option>
+                    </select>
+                  </div>
+                </div>
 
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-1/2 border border-slate-200 text-slate-600 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvando}
-                  className="w-1/2 bg-[#00A884] hover:bg-teal-700 text-white py-2.5 rounded-lg text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {salvando ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </form>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Médico Responsável</label>
+                  <select
+                    value={medico}
+                    onChange={(e) => setMedico(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
+                  >
+                    <option>Dra. Yuska Maritan</option>
+                    <option>Dr. Roberto Alves</option>
+                    <option>Dr. Fernando Costa</option>
+                    <option>Dra. Camila Duarte</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Especialidade</label>
+                  <select
+                    value={especialidade}
+                    onChange={(e) => setEspecialidade(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-[#00A884]"
+                  >
+                    <option>Cardiologia</option>
+                    <option>Clínica Geral</option>
+                    <option>Pediatria</option>
+                    <option>Ortopedia</option>
+                    <option>Ginecologia</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="w-1/2 border border-slate-200 text-slate-600 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={salvando}
+                    className="w-1/2 bg-[#00A884] hover:bg-teal-700 text-white py-2.5 rounded-lg text-sm font-medium shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {salvando ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

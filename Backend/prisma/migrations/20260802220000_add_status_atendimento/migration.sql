@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "atendimento" ADD COLUMN "status" VARCHAR(20) NOT NULL DEFAULT 'AGUARDANDO';

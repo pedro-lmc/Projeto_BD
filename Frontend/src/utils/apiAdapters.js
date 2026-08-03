@@ -33,6 +33,9 @@ export function normalizarAtendimento(item) {
     status: item.status || DEFAULT_STATUS,
     dataHora: item.dataHora || null,
     queixaPrincipal: item.queixaPrincipal || item.tipo || 'Consulta',
+    especialidade: item.especialidade || 'Cardiologia',
+    convenio: item.convenio || 'Unimed',
+    observacao: item.observacao || 'Consulta agendada para avaliação clínica.',
   };
 }
 

@@ -99,6 +99,11 @@ model Unidade {
   tipo             String @db.VarChar(50) // Enfermaria, UTI, Pronto-Socorro, Ambulatorio
   capacidadeLeitos Int?   @map("capacidade_leitos")
 
+  // Controle de limpeza do leito (só é relevante para unidades com capacidadeLeitos = 1,
+  // ou seja, leitos avulsos exibidos na tela /leitos). Valores: "LIVRE" | "SUJO".
+  // Quando SUJO, o leito aparece como HIGIENIZACAO até alguém marcar como limpo.
+  statusLimpeza    String @default("LIVRE") @map("status_limpeza")
+
   escalas          Escala[]
   internacoes      Internacao[]
 
@@ -113,6 +118,16 @@ model Atendimento {
   id             Int      @id @default(autoincrement()) @map("id_atendimento")
   dataHora       DateTime @map("data_hora")
   duracaoMinutos Int      @map("duracao_minutos")
+  status         String   @default("AGUARDANDO") @db.VarChar(20) // AGUARDANDO | EM_ATENDIMENTO | CONCLUIDO
+
+  // Campos livres preenchidos pelo formulário simplificado da agenda.
+  // Guardados diretamente (em vez de sempre derivados do residente/preceptor)
+  // para que o agendamento reflita exatamente o que foi digitado na tela.
+  medicoNome     String?  @map("medico_nome") @db.VarChar(150)
+  especialidade  String?  @db.VarChar(100)
+  convenio       String?  @db.VarChar(50)
+  hora           String?  @db.VarChar(5)
+  observacao     String?
 
   pacienteId     Int      @map("id_paciente")
   paciente       Paciente @relation(fields: [pacienteId], references: [id])

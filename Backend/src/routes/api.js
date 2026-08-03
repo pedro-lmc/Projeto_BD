@@ -14,10 +14,15 @@ router.delete('/atendimentos/:id', atendimentoController.excluirAtendimento);
 
 router.get('/pacientes', pacienteController.listarPacientes);
 router.post('/pacientes', pacienteController.criarPaciente);
+router.put('/pacientes/:id', pacienteController.atualizarPaciente);
+router.delete('/pacientes/:id', pacienteController.excluirPaciente);
 router.get('/pacientes/:pacienteId/evolucoes', evolucaoController.listarEvolucoesPorPaciente);
 
 router.get('/leitos', leitoController.listarLeitos);
-router.patch('/leitos/:id/status', leitoController.atualizarStatusLeito);
+router.get('/leitos/pacientes-disponiveis', leitoController.listarPacientesDisponiveis);
+router.post('/leitos/:id/paciente', leitoController.adicionarPaciente);
+router.delete('/leitos/:id/paciente', leitoController.removerPaciente);
+router.post('/leitos/:id/limpar', leitoController.limparLeito);
 
 router.get('/configuracoes', configuracaoController.obterConfiguracao);
 router.put('/configuracoes', configuracaoController.atualizarConfiguracao);

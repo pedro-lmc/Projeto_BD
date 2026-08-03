@@ -83,6 +83,91 @@ exports.criarPaciente = async (req, res) => {
     res.status(201).json(mapearPaciente(novoPaciente));
   } catch (error) {
     console.error('Erro ao cadastrar paciente:', error);
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Já existe um paciente cadastrado com este CPF.' });
+    }
     res.status(400).json({ error: 'Erro ao cadastrar paciente.' });
+  }
+};
+
+exports.atualizarPaciente = async (req, res) => {
+  const { id } = req.params;
+  const { nome, cpf, dataNascimento, tipoSanguineo, alergias, telefone, numConvenio, isFlamengo } = req.body;
+
+  try {
+    const pacienteExistente = await prisma.paciente.findUnique({ where: { id: Number(id) } });
+
+    if (!pacienteExistente) {
+      return res.status(404).json({ error: 'Paciente não encontrado.' });
+    }
+
+    let nascimento;
+    if (dataNascimento) {
+      nascimento = new Date(dataNascimento);
+      if (Number.isNaN(nascimento.getTime())) {
+        return res.status(400).json({ error: 'dataNascimento inválida.' });
+      }
+    }
+
+    const pacienteAtualizado = await prisma.paciente.update({
+      where: { id: Number(id) },
+      data: {
+        pessoa: {
+          update: {
+            ...(nome ? { nome: String(nome).trim() } : {}),
+            ...(cpf ? { cpf: String(cpf).trim() } : {}),
+            ...(nascimento ? { dataNascimento: nascimento } : {}),
+            ...(telefone ? { telefone: String(telefone).trim() } : {}),
+            ...(isFlamengo !== undefined ? { isFlamengo: Boolean(isFlamengo) } : {})
+          }
+        },
+        ...(numConvenio !== undefined ? { numConvenio: numConvenio ? String(numConvenio).trim() : null } : {}),
+        ...(alergias !== undefined ? { alergias: normalizarAlergias(alergias) } : {}),
+        ...(tipoSanguineo !== undefined ? { grupoSanguineo: tipoSanguineo ? String(tipoSanguineo).trim() : null } : {})
+      },
+      include: { pessoa: true }
+    });
+
+    res.json(mapearPaciente(pacienteAtualizado));
+  } catch (error) {
+    console.error('Erro ao atualizar paciente:', error);
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Já existe um paciente cadastrado com este CPF.' });
+    }
+    res.status(400).json({ error: 'Erro ao atualizar paciente.' });
+  }
+};
+
+// DELETE /api/pacientes/:id — a "lixeira" da tela de Pacientes.
+// Exclusão forte: remove o paciente e tudo que está vinculado a ele
+// (atendimentos, procedimentos realizados nesses atendimentos, internações
+// e evoluções), sem exigir que o usuário limpe o histórico manualmente antes.
+exports.excluirPaciente = async (req, res) => {
+  const { id } = req.params;
+  const pacienteId = Number(id);
+
+  try {
+    const pacienteExistente = await prisma.paciente.findUnique({ where: { id: pacienteId } });
+    if (!pacienteExistente) {
+      return res.status(404).json({ error: 'Paciente não encontrado.' });
+    }
+
+    await prisma.$transaction([
+      // procedimento_realizado tem onDelete: Cascade a partir de atendimento,
+      // então apagar os atendimentos já limpa os procedimentos realizados junto.
+      prisma.atendimento.deleteMany({ where: { pacienteId } }),
+      prisma.internacao.deleteMany({ where: { pacienteId } }),
+      // pessoa tem onDelete: Cascade para paciente e para evolucao,
+      // então isso remove o registro de Paciente e as evoluções vinculadas.
+      prisma.pessoa.delete({ where: { id: pacienteId } })
+    ]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao excluir paciente:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Paciente não encontrado.' });
+    }
+    res.status(400).json({ error: 'Erro ao excluir paciente.' });
   }
 };
