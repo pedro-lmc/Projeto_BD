@@ -122,6 +122,23 @@ export default function AgendaPage() {
     item.medico?.toLowerCase().includes(busca.toLowerCase())
   );
 
+  // Converte "HH:MM" em minutos desde meia-noite para ordenar a fila
+  // cronologicamente (como os ponteiros de um relógio). Horários inválidos
+  // ou ausentes ("--:--") vão para o final da lista.
+  const paraMinutos = (horaTexto) => {
+    if (!horaTexto) return Infinity;
+    const [horas, minutos] = horaTexto.split(':').map(Number);
+    if (Number.isNaN(horas) || Number.isNaN(minutos)) return Infinity;
+    return horas * 60 + minutos;
+  };
+
+  const agendamentosOrdenados = [...agendamentosFiltrados].sort(
+    (a, b) => paraMinutos(a.hora) - paraMinutos(b.hora)
+  );
+
+  const emAtendimento = agendamentos.filter((a) => a.status === 'EM_ATENDIMENTO').length;
+  const atendidos = agendamentos.filter((a) => a.status === 'CONCLUIDO').length;
+
   return (
     <div className="p-8 space-y-6">
       {/* Topo */}
@@ -145,11 +162,11 @@ export default function AgendaPage() {
           <div className="p-3 bg-blue-50 text-blue-500 rounded-xl"><Calendar size={20} /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div><p className="text-[11px] font-bold text-slate-400 uppercase">NA RECEPÇÃO</p><p className="text-2xl font-bold text-slate-800 mt-1">3</p></div>
+          <div><p className="text-[11px] font-bold text-slate-400 uppercase">EM ATENDIMENTO</p><p className="text-2xl font-bold text-slate-800 mt-1">{emAtendimento}</p></div>
           <div className="p-3 bg-amber-50 text-amber-500 rounded-xl"><Clock size={20} /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
-          <div><p className="text-[11px] font-bold text-slate-400 uppercase">ATENDIDOS</p><p className="text-2xl font-bold text-slate-800 mt-1">7</p></div>
+          <div><p className="text-[11px] font-bold text-slate-400 uppercase">ATENDIDOS</p><p className="text-2xl font-bold text-slate-800 mt-1">{atendidos}</p></div>
           <div className="p-3 bg-emerald-50 text-emerald-500 rounded-xl"><CheckCircle2 size={20} /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
@@ -184,8 +201,8 @@ export default function AgendaPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {agendamentosFiltrados.length > 0 ? (
-              agendamentosFiltrados.map((item) => (
+            {agendamentosOrdenados.length > 0 ? (
+              agendamentosOrdenados.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 pl-3 font-semibold text-slate-700">{item.hora}</td>
                   <td className="py-3 font-bold text-slate-800">

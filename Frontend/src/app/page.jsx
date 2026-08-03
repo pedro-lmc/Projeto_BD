@@ -128,6 +128,17 @@ export default function Dashboard() {
     item.paciente.toLowerCase().includes(busca.toLowerCase())
   );
 
+  const paraMinutos = (horaTexto) => {
+    if (!horaTexto) return Infinity;
+    const [horas, minutos] = horaTexto.split(':').map(Number);
+    if (Number.isNaN(horas) || Number.isNaN(minutos)) return Infinity;
+    return horas * 60 + minutos;
+  };
+
+  const atendimentosOrdenados = [...atendimentosFiltrados].sort(
+    (a, b) => paraMinutos(a.hora) - paraMinutos(b.hora)
+  );
+
   const totalLeitos = leitos.length;
   const leitosOcupados = leitos.filter((l) => l.status === 'OCUPADO').length;
   const leitosLivres = leitos.filter((l) => l.status === 'LIVRE').length;
@@ -213,8 +224,8 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {atendimentosFiltrados.length > 0 ? (
-              atendimentosFiltrados.map((item) => (
+            {atendimentosOrdenados.length > 0 ? (
+              atendimentosOrdenados.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 pl-3 font-semibold text-slate-700">{item.hora}</td>
                   <td className="py-3 font-bold text-slate-800">
